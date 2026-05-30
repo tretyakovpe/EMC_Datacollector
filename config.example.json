@@ -1,0 +1,8 @@
+{
+  "db_prod_connection": "server=<YOUR SQLSERVER ADDRESS>;user id=<USER ID>;password=<PASSWORD>;database=<DATABASE NAME>;encrypt=disable",
+  "db_test_connection": "server=<YOUR SQLSERVER ADDRESS>;user id=<USER ID>;password=<PASSWORD>;database=<DEV DATABASE NAME>;encrypt=disable",
+  "trassir_address": "<TRASSIR SERVER ADDRESS>",
+  "trassir_username": "<USERNAME Script by default>",
+  "trassir_password": "<PASSWORD set in Trassir properties>",
+  "plc_polling_interval_ms": 1000
+}
