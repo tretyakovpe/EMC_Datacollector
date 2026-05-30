@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"datacollector/config"
 	"datacollector/database" // Импортируем наш пакет БД
 	"datacollector/label"
 	"datacollector/logger"
@@ -28,12 +29,9 @@ type Line struct {
 }
 
 func main() {
-	// 1. Объявляем флаги
 	debugLineName := flag.String("debug-line", "", "Имя линии для запуска в режиме отладки")
 	debugLineIP := flag.String("debug-ip", "", "IP-адрес тестового ПЛК для режима отладки")
-	// Добавляем флаг переключения на тестовую базу данных
 	useDebugDB := flag.Bool("debug-db", false, "Использовать тестовую базу данных для записи")
-
 	flag.Parse()
 
 	if err := logger.Init(); err != nil {
@@ -41,27 +39,30 @@ func main() {
 	}
 	defer logger.Close()
 
-	// 2. Настраиваем строки подключения для разных сред
-	var connString string
-
-	if *useDebugDB {
-		// СТРОКА ПОДКЛЮЧЕНИЯ К ТЕСТОВОЙ БАЗЕ (Копии боевой)
-		logger.Info("ВНИМАНИЕ: Используется ТЕСТОВАЯ база данных (emc_prod_dev)!")
-		connString = "server=togprod.emc-tlt.tech;user id=sa;password=Mount&Blade-2020;database=emc_prod_dev;encrypt=disable"
-	} else {
-		// СТРОКА ПОДКЛЮЧЕНИЯ К БОЕВОЙ БАЗЕ
-		logger.Info("Запуск работы с БОЕВОЙ базой данных (ProductionDB)!")
-		connString = "server=togprod.emc-tlt.tech;user id=sa;password=Mount&Blade-2020;database=emc_prod;encrypt=disable"
+	// ВАЖНО: Первым делом загружаем настройки из файла config.json
+	if err := config.LoadConfig(); err != nil {
+		logger.Error("Ошибка загрузки конфигурации: %v", err)
+		return
 	}
 
-	// Инициализация пула соединений с выбранной базой
+	// Выбираем нужную строку подключения из файла конфигурации
+	var connString string
+	if *useDebugDB {
+		logger.Info("ВНИМАНИЕ: Используется ТЕСТОВАЯ база данных!")
+		connString = config.GlobalConfig.DbTestConnection
+	} else {
+		logger.Info("Запуск работы с БОЕВОЙ базой данных!")
+		connString = config.GlobalConfig.DbProdConnection
+	}
+
 	if err := database.Init(connString); err != nil {
 		logger.Error("Не удалось запустить сборщик: %v", err)
 		return
 	}
 	defer database.Close()
 
-	// Дальнейший код формирования списка активных линий остается без изменений...
+	// Интервал опроса теперь тоже можно брать из конфига
+	interval := time.Duration(config.GlobalConfig.PlcPollingIntervalMs) * time.Millisecond
 
 	var activeLines []Line
 
@@ -79,7 +80,7 @@ func main() {
 				Slot:     2,
 				Camera:   "YF8Npzk1",
 				Printer:  "togp0004.emc-tlt.tech",
-				Interval: 1000 * time.Millisecond,
+				Interval: interval,
 			},
 		}
 	}

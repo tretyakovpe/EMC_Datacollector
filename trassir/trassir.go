@@ -3,6 +3,7 @@ package trassir
 import (
 	"bytes"
 	"crypto/tls"
+	"datacollector/config"
 	"datacollector/database"
 	"datacollector/logger"
 	"encoding/json"
@@ -12,13 +13,6 @@ import (
 	"os"
 	"path/filepath"
 	"time"
-)
-
-// Настройки подключения к Трассиру (подставим реальные параметры из Program.cs)
-const (
-	ServerAddress = "https://emc-tlt.tech"
-	Username      = "Script"
-	Password      = "99015477"
 )
 
 // Инициализируем кастомный HTTP-клиент, который полностью игнорирует проверку SSL-сертификатов
@@ -69,7 +63,7 @@ func ProcessNokVideoAsync(lineName string, cameraGuid string, materialCode strin
 // saveVideo выполняет все 5 шагов запроса и сохранения файла
 func saveVideo(lineName string, cameraGuid string, moment time.Time) (string, error) {
 	// Шаг 1: Получаем session ID (sid)
-	loginUrl := fmt.Sprintf("%slogin?password=%s", ServerAddress, Password)
+	loginUrl := fmt.Sprintf("%slogin?password=%s", config.GlobalConfig.TrassirAddress, config.GlobalConfig.TrassirPassword)
 	resp, err := httpClient.Get(loginUrl)
 	if err != nil {
 		return "", fmt.Errorf("ошибка запроса авторизации: %w", err)
@@ -98,7 +92,7 @@ func saveVideo(lineName string, cameraGuid string, moment time.Time) (string, er
 	}
 
 	jsonBytes, _ := json.Marshal(taskReq)
-	createTaskUrl := fmt.Sprintf("%sjit-export-create-task?sid=%s", ServerAddress, sid)
+	createTaskUrl := fmt.Sprintf("%sjit-export-create-task?sid=%s", config.GlobalConfig.TrassirAddress, sid)
 
 	respTask, err := httpClient.Post(createTaskUrl, "application/json", bytes.NewBuffer(jsonBytes))
 	if err != nil {
@@ -112,7 +106,7 @@ func saveVideo(lineName string, cameraGuid string, moment time.Time) (string, er
 	}
 
 	// Шаг 4: Скачиваем видеофайл
-	downloadUrl := fmt.Sprintf("%sjit-export-download?sid=%s&task_id=%s", ServerAddress, sid, taskResp.TaskId)
+	downloadUrl := fmt.Sprintf("%sjit-export-download?sid=%s&task_id=%s", config.GlobalConfig.TrassirAddress, sid, taskResp.TaskId)
 	respDownload, err := httpClient.Get(downloadUrl)
 	if err != nil {
 		return "", fmt.Errorf("ошибка скачивания видеофайла: %w", err)
