@@ -1,0 +1,100 @@
+{
+  "width": 210,
+  "height": 148,
+  "Strips": [
+    {
+      "X1": 5,
+      "Y1": 5,
+      "X2": 5,
+      "Y2": 143
+    },
+    {
+      "X1": 5,
+      "Y1": 143,
+      "X2": 204,
+      "Y2": 143
+    },
+    {
+      "X1": 204,
+      "Y1": 143,
+      "X2": 204,
+      "Y2": 5
+    },
+    {
+      "X1": 204,
+      "Y1": 5,
+      "X2": 5,
+      "Y2": 5
+    }
+  ],
+  "TextFields": [
+    {
+      "Name": "Material",
+      "X": 10,
+      "Y": 30,
+      "Width": 90,
+      "Height": 16,
+      "FontSize": 16,
+      "FontWeight": "bold",
+      "Format": ""
+    },
+    {
+      "Name": "CustomerCode",
+      "X": 120,
+      "Y": 30,
+      "FontSize": 12,
+      "FontWeight": "normal",
+      "Width": 90,
+      "Height": 15
+    },
+    {
+      "Name": "Destination",
+      "X": 120,
+      "Y": 42,
+      "FontSize": 12,
+      "FontWeight": "normal",
+      "Width": 90,
+      "Height": 15
+    },
+    {
+      "Name": "Date",
+      "X": 70,
+      "Y": 80,
+      "FontSize": 10,
+      "FontWeight": "normal",
+      "Width": 50,
+      "Height": 15,
+      "Format": "dd:MM:yyyy"
+    },
+    {
+      "Name": "Time",
+      "X": 70,
+      "Y": 92,
+      "FontSize": 10,
+      "FontWeight": "normal",
+      "Width": 50,
+      "Height": 15,
+      "Format": "hh\\:mm\\:ss"
+    },
+    {
+      "Name": "Amount",
+      "X": 150,
+      "Y": 80,
+      "FontSize": 16,
+      "FontWeight": "bold",
+      "Width": 45,
+      "Height": 15
+    }
+  ],
+  "QRCodes": [
+    {
+      "Name": "QRCode",
+      "X": 10,
+      "Y": 70,
+      "Size": 2,
+      "FontSize": 4,
+      "TextBelow": 55
+    }
+  ],
+  "Barcodes": []
+}
