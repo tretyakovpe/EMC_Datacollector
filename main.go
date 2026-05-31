@@ -3,14 +3,16 @@ package main
 import (
 	"context"
 	"datacollector/config"
-	"datacollector/database" // Импортируем наш пакет БД
+	"datacollector/database"
 	"datacollector/label"
 	"datacollector/logger"
 	"datacollector/plc"
 	"datacollector/trassir"
+	"datacollector/webserver"
 	"flag"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -19,18 +21,21 @@ import (
 )
 
 type Line struct {
-	Name     string
-	IP       string
-	Rack     int
-	Slot     int
-	Camera   string
-	Printer  string
-	Interval time.Duration
+	Name            string
+	IP              string
+	Rack            int
+	Slot            int
+	Camera          string
+	Printer         string
+	Interval        time.Duration
+	DisablePLCWrite bool
+	hasDB1013       *bool
 }
 
 func main() {
-	debugLineName := flag.String("debug-line", "", "Имя линии для запуска в режиме отладки")
-	debugLineIP := flag.String("debug-ip", "", "IP-адрес тестового ПЛК для режима отладки")
+	debugMode := flag.Bool("debug", false, "Режим отладки (НЕ сбрасываем флаги в ПЛК)")
+	lineName := flag.String("line", "", "Имя линии для отладки (работаем только с этой линией)")
+	overrideIP := flag.String("ip", "", "Переопределить IP адрес ПЛК (для отладки)")
 	useDebugDB := flag.Bool("debug-db", false, "Использовать тестовую базу данных для записи")
 	flag.Parse()
 
@@ -39,13 +44,14 @@ func main() {
 	}
 	defer logger.Close()
 
-	// ВАЖНО: Первым делом загружаем настройки из файла config.json
+	// Запуск веб-сервера
+	webserver.StartServer(*useDebugDB, logger.LogChannel)
+
 	if err := config.LoadConfig(); err != nil {
 		logger.Error("Ошибка загрузки конфигурации: %v", err)
 		return
 	}
 
-	// Выбираем нужную строку подключения из файла конфигурации
 	var connString string
 	if *useDebugDB {
 		logger.Info("ВНИМАНИЕ: Используется ТЕСТОВАЯ база данных!")
@@ -61,27 +67,120 @@ func main() {
 	}
 	defer database.Close()
 
-	// Интервал опроса теперь тоже можно брать из конфига
 	interval := time.Duration(config.GlobalConfig.PlcPollingIntervalMs) * time.Millisecond
 
 	var activeLines []Line
 
-	if *debugLineName != "" {
-		testIP := "127.0.0.1"
-		if *debugLineIP != "" {
-			testIP = *debugLineIP
+	// Режим отладки (указан флаг -line)
+	if *lineName != "" {
+		logger.Info("=== РЕЖИМ ОТЛАДКИ ===")
+		logger.Info("Линия: %s", *lineName)
+		if *overrideIP != "" {
+			logger.Info("IP адрес: %s (переопределён)", *overrideIP)
+		}
+		if *debugMode {
+			logger.Info("Сброс флагов в ПЛК: ОТКЛЮЧЁН")
+		} else {
+			logger.Info("Сброс флагов в ПЛК: ВКЛЮЧЁН")
+		}
+
+		// Загружаем конфигурацию линии из БД
+		lineConfig, err := database.GetLineConfig(*lineName)
+		if err != nil {
+			logger.Error("Ошибка загрузки конфигурации линии %s: %v", *lineName, err)
+			return
+		}
+		if lineConfig == nil {
+			logger.Error("Линия %s не найдена в БД или не активна", *lineName)
+			return
+		}
+
+		// Переопределяем IP если указан флаг
+		plcIP := strings.TrimSpace(lineConfig.IP)
+		if *overrideIP != "" {
+			plcIP = *overrideIP
+		}
+
+		// Определяем принтер (если в конфиге линии нет, используем дефолтный)
+		printerAddr := config.GlobalConfig.DefaultPrinter
+		if lineConfig.Printer.Valid && strings.TrimSpace(lineConfig.Printer.String) != "" {
+			printerAddr = strings.TrimSpace(lineConfig.Printer.String)
+			logger.Info("Принтер из конфигурации линии: %s", printerAddr)
+		} else {
+			logger.Info("Принтер из config.json (DefaultPrinter): %s", printerAddr)
+		}
+
+		// Определяем камеру
+		cameraGuid := "YF8Npzk1" // значение по умолчанию
+		if lineConfig.Camera.Valid && lineConfig.Camera.String != "" {
+			cameraGuid = lineConfig.Camera.String
 		}
 
 		activeLines = []Line{
 			{
-				Name:     *debugLineName,
-				IP:       testIP,
-				Rack:     0,
-				Slot:     2,
-				Camera:   "YF8Npzk1",
-				Printer:  "togp0004.emc-tlt.tech",
-				Interval: interval,
+				Name:            strings.TrimSpace(lineConfig.Name),
+				IP:              plcIP,
+				Rack:            0,
+				Slot:            2,
+				Camera:          cameraGuid,
+				Printer:         printerAddr,
+				Interval:        interval,
+				DisablePLCWrite: *debugMode, // В режиме отладки не сбрасываем флаги
 			},
+		}
+
+		logger.Info("Конфигурация линии:")
+		logger.Info("  - Имя: %s", activeLines[0].Name)
+		logger.Info("  - IP: %s", activeLines[0].IP)
+		logger.Info("  - Принтер: %s", activeLines[0].Printer)
+		logger.Info("  - Камера: %s", activeLines[0].Camera)
+		logger.Info("  - Сброс флагов: %v", !activeLines[0].DisablePLCWrite)
+
+	} else {
+		// Боевой режим - загружаем все активные линии из БД
+		logger.Info("=== БОЕВОЙ РЕЖИМ ===")
+
+		dbLines, err := database.GetActiveLines()
+		if err != nil {
+			logger.Error("Ошибка загрузки линий из БД: %v", err)
+			return
+		}
+
+		if len(dbLines) == 0 {
+			logger.Error("Нет активных линий в таблице plc (is_active=1)")
+			return
+		}
+
+		for _, dbLine := range dbLines {
+			// Получаем камеру (если есть)
+			cameraGuid := "YF8Npzk1" // значение по умолчанию
+			if dbLine.Camera.Valid {
+				cameraGuid = dbLine.Camera.String
+			}
+
+			// Получаем принтер (если есть)
+			printerAddr := config.GlobalConfig.DefaultPrinter
+			if dbLine.Printer.Valid && strings.TrimSpace(dbLine.Printer.String) != "" {
+				printerAddr = strings.TrimSpace(dbLine.Printer.String)
+			}
+
+			activeLines = append(activeLines, Line{
+				Name:            strings.TrimSpace(dbLine.Name),
+				IP:              strings.TrimSpace(dbLine.IP),
+				Rack:            0,
+				Slot:            2,
+				Camera:          cameraGuid,
+				Printer:         printerAddr,
+				Interval:        interval,
+				DisablePLCWrite: *debugMode,
+				hasDB1013:       nil,
+			})
+
+			logger.Info("Добавлена линия: %s (IP: %s, принтер: %s, камера: %s)",
+				strings.TrimSpace(dbLine.Name),
+				strings.TrimSpace(dbLine.IP),
+				printerAddr,
+				cameraGuid)
 		}
 	}
 
@@ -109,7 +208,8 @@ func main() {
 }
 
 func runLinePolling(ctx context.Context, line Line) {
-	logger.Info("[%s] Поток опроса запущен для IP: %s", line.Name, line.IP)
+	logger.Info("[%s] Поток опроса запущен для IP: %s (запись в ПЛК: %v)",
+		line.Name, line.IP, !line.DisablePLCWrite)
 
 	handler := gos7.NewTCPClientHandler(line.IP, line.Rack, line.Slot)
 	handler.Timeout = 2 * time.Second
@@ -126,8 +226,7 @@ func runLinePolling(ctx context.Context, line Line) {
 		select {
 		case <-ctx.Done():
 			handler.Close()
-			// При остановке программы фиксируем, что линия ушла в оффлайн
-			database.UpdateLineStatus(line.Name, false)
+			database.UpdateLineOnlineStatus(line.Name, false)
 			logger.Info("[%s] Поток опроса остановлен.", line.Name)
 			return
 		case <-ticker.C:
@@ -136,31 +235,47 @@ func runLinePolling(ctx context.Context, line Line) {
 					failCounter++
 					if failCounter%10 == 1 {
 						logger.Error("[%s] ПЛК недоступен (попытка %d): %v", line.Name, failCounter, err)
-						// Пишем в БД статус оффлайн
-						database.UpdateLineStatus(line.Name, false)
+						database.UpdateLineOnlineStatus(line.Name, false)
 					}
 					continue
 				}
 				logger.Info("[%s] Связь с ПЛК успешно установлена!", line.Name)
 				isConnected = true
 				failCounter = 0
-				// Пишем в БД статус онлайн
-				database.UpdateLineStatus(line.Name, true)
+				database.UpdateLineOnlineStatus(line.Name, true)
 			}
 
+			// Livebit отправляем всегда
 			plc.SetFlagAt(client, line.Name, plc.Livebit)
 
-			if !pollPartData(client, line) || !pollBoxData(client, line) {
+			if !pollPartData(client, &line) || !pollBoxData(client, line) {
 				logger.Error("[%s] Ошибка обмена данными. Сбрасываем соединение.", line.Name)
 				handler.Close()
 				isConnected = false
-				database.UpdateLineStatus(line.Name, false)
+				database.UpdateLineOnlineStatus(line.Name, false)
 			}
 		}
 	}
 }
 
-func pollPartData(client gos7.Client, line Line) bool {
+func pollPartData(client gos7.Client, line *Line) bool {
+	// Проверяем наличие DB1013 (один раз при первом вызове)
+	if line.hasDB1013 == nil {
+		exists := checkDBExists(client, 1013)
+		line.hasDB1013 = &exists
+		if !exists {
+			logger.Info("[%s] DB1013 не найдена в ПЛК, опрос деталей отключён", line.Name)
+			return true
+		}
+		logger.Info("[%s] DB1013 найдена, опрос деталей включён", line.Name)
+	}
+
+	// Если DB1013 нет - просто возвращаем успех
+	if !*line.hasDB1013 {
+		return true
+	}
+
+	// Читаем данные из DB1013
 	partData := make([]byte, 36)
 	err := client.AGReadDB(1013, 0, 36, partData)
 	if err != nil {
@@ -176,7 +291,6 @@ func pollPartData(client gos7.Client, line Line) bool {
 		partNOk := plc.GetBitAt(partData, 0, 1)
 
 		if partOk {
-			// ВАЖНО: Фиксируем деталь в базу данных
 			database.SaveGoodPart(line.Name, partMaterial, counter)
 		}
 
@@ -186,11 +300,15 @@ func pollPartData(client gos7.Client, line Line) bool {
 			mkmData := make([]byte, 4)
 			copy(mkmData, partData[26:30])
 
-			// Передаем line.Camera (Guid) в асинхронный обработчик
 			go trassir.ProcessNokVideoAsync(line.Name, line.Camera, partMaterial, counter, mkmData)
 		}
 
-		plc.SetFlagAt(client, line.Name, plc.Partready)
+		// Сбрасываем флаг PartReady если разрешено
+		if !line.DisablePLCWrite {
+			plc.SetFlagAt(client, line.Name, plc.Partready)
+		} else {
+			logger.Debug("[%s] Режим отладки: сброс PartReady отключён", line.Name)
+		}
 	}
 	return true
 }
@@ -200,7 +318,7 @@ func pollBoxData(client gos7.Client, line Line) bool {
 	err := client.AGReadDB(1012, 0, 64, boxData)
 	if err != nil {
 		logger.Error("[%s] Ошибка чтения DB1012: %v", line.Name, err)
-		return false
+		return false // DB1012 критичен, без него останавливаем опрос
 	}
 
 	if plc.GetBitAt(boxData, 1, 0) { // BoxReady
@@ -208,34 +326,43 @@ func pollBoxData(client gos7.Client, line Line) bool {
 		amount := plc.GetRealAt(boxData, 22)
 		materialDescription := plc.GetWin1251String(boxData, 28, 36)
 
-		// 1. Фиксируем в БД и забираем сгенерированный уникальный номер бирки
 		labelCode := database.CloseAndProduceBox(line.Name, material, amount)
 
 		if labelCode != "" {
-			// 2. Наполняем структуру данными, которые мы только что считали из ПЛК!
 			boxInfo := label.BoxData{
 				LabelCode:   labelCode,
 				Material:    material,
-				Description: materialDescription, // Настоящее ASCII имя из станка!
+				Description: materialDescription,
 				Amount:      int(amount),
 				Line:        line.Name,
-				Shift:       "A", // Смена посчитается в базе, для визуализации на бирке поставим пока А
+				Shift:       "A",
 				Date:        time.Now(),
 			}
 
-			// 3. Асинхронно пускаем печать, не тормозя конвейер ПЛК
 			go func(info label.BoxData) {
 				pdfFile, err := label.GenerateLabelPdf(info, "A5")
 				if err != nil {
 					logger.Error("[%s] Ошибка генерации PDF: %v", line.Name, err)
 					return
 				}
-				// Печать сгенерированной бирки
 				_ = label.PrintLabelNetwork(pdfFile, line.Printer, line.Name)
 			}(boxInfo)
 		}
 
-		plc.SetFlagAt(client, line.Name, plc.Boxready)
+		// Сбрасываем флаг BoxReady если разрешено
+		if !line.DisablePLCWrite {
+			plc.SetFlagAt(client, line.Name, plc.Boxready)
+		} else {
+			logger.Debug("[%s] Режим отладки: сброс BoxReady отключён", line.Name)
+		}
 	}
 	return true
+}
+
+// checkDBExists проверяет существование DB в ПЛК
+func checkDBExists(client gos7.Client, dbNumber int) bool {
+	// Пробуем прочитать 1 байт из DB
+	testData := make([]byte, 36)
+	err := client.AGReadDB(dbNumber, 0, 36, testData)
+	return err == nil
 }

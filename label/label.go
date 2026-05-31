@@ -65,7 +65,7 @@ func GenerateLabelPdf(box BoxData, labelType string) (string, error) {
 	}
 	appDir := filepath.Dir(execPath)
 
-	// 1. Читаем ваш JSON-файл разметки
+	// 1. Читаем JSON-файл разметки
 	jsonPath := filepath.Join(appDir, "Labels", fmt.Sprintf("%s.json", labelType))
 	jsonBytes, err := os.ReadFile(jsonPath)
 	if err != nil {
@@ -193,13 +193,13 @@ func GenerateLabelPdf(box BoxData, labelType string) (string, error) {
 	}
 	defer pdfFile.Close()
 
-	// 1. Переводим физические размеры А5 из миллиметров в пункты PDF (72 точки на дюйм)
-	// 1 дюйм = 25.4 мм. Значит 1 мм = 72 / 25.4 пунктов.
+	// Переводим физические размеры А5 из миллиметров в пункты PDF (96 точки на дюйм)
+	// дюйм = 25.4 мм. Значит 1 мм = 96 / 25.4 пунктов.
 	mmToPoints := 96.0 / 25.4
 	pdfWidthPoints := template.Width * mmToPoints
 	pdfHeightPoints := template.Height * mmToPoints
 
-	// 2. Инициализируем PDF-рендерер в точных размерах листа А5
+	// 2. Инициализируем PDF-рендерер в точных размерах листа
 	pdfRenderer := pdf.New(pdfFile, pdfWidthPoints, pdfHeightPoints, nil)
 
 	// 3. Создаем контекст рисования (Canvas) поверх PDF-файла.
@@ -208,7 +208,6 @@ func GenerateLabelPdf(box BoxData, labelType string) (string, error) {
 	ctx := canvas.NewContext(pdfRenderer)
 
 	// Устанавливаем масштаб контекста: переводим пиксели SVG в миллиметры PDF
-	// Чтобы 1 единица координат в JSON была равна ровно 1 миллиметру на листе А5!
 	ctx.SetCoordSystem(canvas.CartesianIV) // Включает систему координат SVG (0,0 сверху-слева)
 	ctx.Scale(mmToPoints, mmToPoints)      // Масштабируем единицы в миллиметры
 

@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="ru" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, initial-scale=1.0">
+    <title>MES Data Collector — Панель управления производством</title>
+    <!-- Bootstrap 5 Dark Theme (CDN) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome Icons (опционально, но добавим для иконок как в старом проекте) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* Кастомные стили, повторяющие старый проект, но адаптированные под тёмную тему Bootstrap */
+        [data-bs-theme="dark"] {
+            --bs-body-bg: #101112;
+            --bs-tertiary-bg: #141516;
+            --bs-body-color: #dee2e6;
+            --bs-border-color: #495057;
+        }
+        [data-bs-theme="dark"] .table {
+            --bs-table-bg: #2b3035;
+            --bs-table-border-color: #495057;
+        }
+        /* Контейнер для прогресс-бара (аналог старого progress-container) */
+        .progress-container {
+            width: 40px;
+            height: 50px;
+            background-color: #1e1e1e;
+            border: 1px solid #495057;
+            position: relative;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .progress-cell {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 0%;
+            transition: height 0.3s ease-out;
+            background-color: #0d6efd;
+        }
+        .progress-cell.bg-danger {
+            background-color: #dc3545;
+        }
+        .log-container {
+            background-color: #1a1c1e;
+            border-radius: 8px;
+            font-family: 'Consolas', monospace;
+            font-size: 12px;
+            height: 70vh;
+            overflow-y: auto;
+        }
+        .log-container pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            color: #0f0;
+        }
+        .navbar-brand {
+            font-weight: 600;
+        }
+        .badge-online {
+            background-color: #198754;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+        }
+        .badge-offline {
+            background-color: #6c757d;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+        }
+        .stat-card {
+            background-color: #32373d;
+            border-radius: 12px;
+            padding: 15px;
+            text-align: center;
+            transition: transform 0.2s;
+        }
+        .stat-card:hover {
+            transform: translateY(-3px);
+        }
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #0dcaf0;
+        }
+        .table tbody tr:hover {
+            background-color: rgba(13, 202, 240, 0.1);
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- NAVBAR (как в старом Layout) -->
+    <nav class="navbar navbar-expand-sm px-4 py-2 bg-dark border-bottom">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-microchip"></i> MES Data Collector
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarCollapse">
+                <ul class="navbar-nav me-auto mb-2 mb-sm-0">
+                    <li class="nav-item"><a class="nav-link active" href="#" data-page="dashboard"><i class="fas fa-tachometer-alt"></i> Дашборд</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#" data-page="lines"><i class="fas fa-chalkboard-user"></i> Линии</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#" data-page="materials"><i class="fas fa-cubes"></i> Материалы</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#" data-page="boxes"><i class="fas fa-boxes"></i> Коробки</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#" data-page="stats"><i class="fas fa-chart-line"></i> Статистика</a></li>
+                </ul>
+                <span class="navbar-text text-muted small">
+                    <i class="fas fa-sync-alt" id="liveStatusIcon"></i> Real-time
+                </span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Основной контейнер -->
+    <div class="container-fluid px-4 py-3">
+        <div id="pageContent">
+            <!-- Сюда будет динамически загружаться контент через JS -->
+            <div class="text-center p-5">
+                <div class="spinner-border text-info" role="status"></div>
+                <p>Загрузка панели управления...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Глобальные скрипты -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // ------------------------- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ -------------------------
+        let currentPage = 'dashboard';
+        let wsConnection = null;
+        let logLineCount = 0;
+        const maxLogLines = 500;
+        
+        // Функция для обновления индикатора статуса WebSocket
+        function updateWSStatus(connected) {
+            const icon = document.getElementById('liveStatusIcon');
+            if (connected) {
+                icon.className = 'fas fa-circle text-success';
+                icon.title = 'WebSocket подключён';
+            } else {
+                icon.className = 'fas fa-circle text-danger';
+                icon.title = 'WebSocket отключён';
+            }
+        }
+
+        // Подключение к WebSocket для логов и обновлений счетчиков (как SignalR)
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            wsConnection = new WebSocket(wsUrl);
+            
+            wsConnection.onopen = () => {
+                updateWSStatus(true);
+                addLogToUI('SYSTEM', 'WebSocket соединение установлено', 'info');
+                // После подключения сразу запрашиваем данные для таблицы линий
+                refreshLinesTable();
+                refreshStatsCards();
+            };
+            
+            wsConnection.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'log') {
+                        // Сообщения от сервера (логи)
+                        addLogToUI(data.data.level || 'INFO', data.data.message, data.data.level === 'ERROR' ? 'danger' : 'secondary');
+                    } else if (data.type === 'box_update') {
+                        // Если в будущем добавим broadcast по коробкам, обработаем
+                        console.log('Box update:', data);
+                        refreshLinesTable(); // обновить таблицу линий при изменении статуса коробки
+                    }
+                } catch(e) { console.error('WebSocket parse error', e); }
+            };
+            
+            wsConnection.onerror = (error) => {
+                console.error('WebSocket error', error);
+                updateWSStatus(false);
+                addLogToUI('SYSTEM', 'Ошибка WebSocket', 'danger');
+            };
+            
+            wsConnection.onclose = () => {
+                updateWSStatus(false);
+                addLogToUI('SYSTEM', 'WebSocket отключён, переподключение через 5 сек...', 'warning');
+                setTimeout(connectWebSocket, 5000);
+            };
+        }
+        
+        // Добавление сообщения в лог-панель (если она существует на текущей странице)
+        function addLogToUI(level, message, type = 'secondary') {
+            const logOutput = document.getElementById('log-output');
+            if (!logOutput) return;
+            
+            const time = new Date().toLocaleTimeString();
+            const logLine = document.createElement('div');
+            logLine.className = `small text-${type} mb-1`;
+            logLine.innerHTML = `<span class="text-muted">[${time}]</span> <strong>[${level}]</strong> ${escapeHtml(message)}`;
+            logOutput.appendChild(logLine);
+            // Ограничиваем количество строк
+            while (logOutput.children.length > maxLogLines) {
+                logOutput.removeChild(logOutput.firstChild);
+            }
+            logOutput.scrollTop = logOutput.scrollHeight;
+        }
+        
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+        
+        // ---------- API ВЫЗОВЫ ----------
+        async function apiGet(endpoint) {
+            const response = await fetch(`/api/${endpoint}`);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.json();
+        }
+        
+        async function refreshLinesTable() {
+            try {
+                const lines = await apiGet('lines');
+                // Обновить таблицу, если она отображается
+                const tbody = document.querySelector('#lines-table tbody');
+                if (tbody) {
+                    renderLinesTable(lines, tbody);
+                }
+                // Также обновим карточки статистики (количество онлайн)
+                const onlineCount = lines.filter(l => l.isOnline).length;
+                const onlineSpan = document.getElementById('onlineCount');
+                if (onlineSpan) onlineSpan.innerText = onlineCount;
+            } catch(e) { console.error('refreshLinesTable error', e); }
+        }
+        
+        async function refreshStatsCards() {
+            try {
+                const stats = await apiGet('stats');
+                document.getElementById('totalGood') && (document.getElementById('totalGood').innerText = Object.values(stats.goodParts || {}).reduce((a,b)=>a+b,0));
+                document.getElementById('totalBad') && (document.getElementById('totalBad').innerText = Object.values(stats.badParts || {}).reduce((a,b)=>a+b,0));
+                document.getElementById('totalBoxes') && (document.getElementById('totalBoxes').innerText = stats.boxesClosed || 0);
+            } catch(e) { console.error('stats error', e); }
+        }
+        
+        // Отрисовка таблицы линий (аналог старого Index.cshtml с прогресс-баром)
+        function renderLinesTable(lines, tbody) {
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            for (const line of lines) {
+                const row = tbody.insertRow();
+                // Ячейка с именем линии и статусом
+                const cellName = row.insertCell(0);
+                const statusClass = line.isOnline ? 'badge-online' : 'badge-offline';
+                const statusText = line.isOnline ? '● ONLINE' : '○ OFFLINE';
+                cellName.innerHTML = `<span class="${statusClass}">${escapeHtml(line.name)}</span><br><small class="text-muted">${statusText}</small>`;
+                
+                // Ячейка с прогрессом (заглушка, в будущем можно привязать к данным счётчика)
+                const cellProgress = row.insertCell(1);
+                const volume = 100; // пример, позже получим из апи current-box или через WebSocket broadcast
+                const counter = 65;
+                let percent = Math.min((counter / volume) * 100, 100);
+                cellProgress.innerHTML = `
+                    <div class="progress-container">
+                        <div class="progress-cell ${percent > 90 ? 'bg-danger' : 'bg-primary'}" style="height: ${percent}%;"></div>
+                    </div>
+                `;
+                
+                // Тип детали (материал) - можно будет получать по линии
+                const cellMaterial = row.insertCell(2);
+                cellMaterial.innerHTML = `<span id="material-${line.name}">—</span>`;
+                
+                // Счётчик
+                const cellCounter = row.insertCell(3);
+                cellCounter.innerHTML = `<span id="counter-${line.name}">—</span>`;
+                
+                // IP адрес
+                const cellIp = row.insertCell(4);
+                cellIp.innerText = line.ip || '—';
+                
+                // Действия (кнопки)
+                const cellActions = row.insertCell(5);
+                cellActions.className = 'text-end';
+                cellActions.innerHTML = `
+                    <div class="btn-group btn-group-sm">
+                        <a class="btn btn-outline-secondary" target="_blank" href="http://${line.printer || 'printer'}.emc-tlt.tech" title="Принтер"><i class="fas fa-print"></i></a>
+                        <button class="btn btn-outline-info" onclick="viewLineDetails('${line.name}')" title="Подробнее"><i class="fas fa-chart-simple"></i></button>
+                    </div>
+                `;
+                
+                // Асинхронно подгрузим текущую коробку для линии, чтобы отобразить материал и прогресс
+                (async (lineName) => {
+                    try {
+                        const box = await apiGet(`current-box/${encodeURIComponent(lineName)}`);
+                        if (box && box.materialCode) {
+                            const materialSpan = document.getElementById(`material-${lineName}`);
+                            if (materialSpan) materialSpan.innerText = box.materialCode;
+                            const counterSpan = document.getElementById(`counter-${lineName}`);
+                            if (counterSpan && box.amount) counterSpan.innerText = `${box.amount} шт`;
+                            // Обновить прогресс, если знаем плановое количество (пока нет)
+                        }
+                    } catch(e) { console.warn(`box info for ${lineName}`, e); }
+                })(line.name);
+            }
+        }
+        
+        function viewLineDetails(lineName) {
+            alert(`Детальная информация по линии ${lineName} будет доступна в ближайшее время.`);
+        }
+        
+        // ---------- ЗАГРУЗКА РАЗНЫХ СТРАНИЦ (SPA стиль) ----------
+        async function loadPage(page) {
+            currentPage = page;
+            const contentDiv = document.getElementById('pageContent');
+            if (!contentDiv) return;
+            
+            if (page === 'dashboard') {
+                contentDiv.innerHTML = `
+                    <div class="row mb-4">
+                        <div class="col-md-3"><div class="stat-card"><div class="stat-number" id="totalGood">0</div><div>✅ Годных деталей</div></div></div>
+                        <div class="col-md-3"><div class="stat-card"><div class="stat-number" id="totalBad">0</div><div>❌ Брак</div></div></div>
+                        <div class="col-md-3"><div class="stat-card"><div class="stat-number" id="totalBoxes">0</div><div>📦 Коробок</div></div></div>
+                        <div class="col-md-3"><div class="stat-card"><div class="stat-number" id="onlineCount">0</div><div>🔌 Линий онлайн</div></div></div>
+                    </div>
+                    <div class="row">
+                        <div class="col-lg-7">
+                            <div class="card"><div class="card-header"><i class="fas fa-industry"></i> Производственные линии</div>
+                            <div class="card-body p-0"><div class="table-responsive"><table class="table table-hover mb-0" id="lines-table"><thead class="table-dark"><tr><th>Линия</th><th>Прогресс</th><th>Материал</th><th>Счётчик</th><th>IP</th><th class="text-end">Действия</th></tr></thead><tbody></tbody></table></div></div></div>
+                        </div>
+                        <div class="col-lg-5">
+                            <div class="card"><div class="card-header"><i class="fas fa-terminal"></i> Системный лог (Live)</div>
+                            <div class="card-body p-0"><div class="log-container p-2" style="height: 500px;"><div id="log-output"></div></div></div></div>
+                        </div>
+                    </div>
+                `;
+                refreshStatsCards();
+                refreshLinesTable();
+            } 
+            else if (page === 'lines') {
+                contentDiv.innerHTML = `
+                    <div class="card"><div class="card-header"><i class="fas fa-chalkboard-user"></i> Управление линиями</div>
+                    <div class="card-body"><div class="table-responsive"><table class="table table-bordered" id="lines-table"><thead class="table-dark"><tr><th>Линия</th><th>IP</th><th>Принтер</th><th>Статус</th><th>Активна</th><th>Действия</th></tr></thead><tbody></tbody></table></div></div></div>
+                `;
+                const lines = await apiGet('lines');
+                const tbody = document.querySelector('#lines-table tbody');
+                if (tbody) {
+                    tbody.innerHTML = lines.map(l => `
+                        <tr>
+                            <td>${escapeHtml(l.name)}</td>
+                            <td>${l.ip || '—'}</td>
+                            <td>${l.printer || '—'}</td>
+                            <td>${l.isOnline ? '<span class="badge bg-success">Онлайн</span>' : '<span class="badge bg-secondary">Оффлайн</span>'}</td>
+                            <td>${l.isActive ? '<i class="fas fa-check-circle text-success"></i>' : '<i class="fas fa-minus-circle text-danger"></i>'}</td>
+                            <td><button class="btn btn-sm btn-outline-primary" onclick="alert('Редактирование в разработке')"><i class="fas fa-edit"></i></button></td>
+                        </tr>
+                    `).join('');
+                }
+            }
+            else if (page === 'materials') {
+                contentDiv.innerHTML = `<div class="card"><div class="card-header">Справочник материалов</div><div class="card-body"><p class="text-muted">Загрузка...</p></div></div>`;
+                // Заглушка, можно реализовать позже через API
+                setTimeout(() => {
+                    const body = contentDiv.querySelector('.card-body');
+                    if (body) body.innerHTML = `<table class="table"><thead><tr><th>Код</th><th>Описание</th><th>Вес нетто</th></tr></thead><tbody><tr><td colspan="3">Функция в разработке</td></tr></tbody></table>`;
+                }, 500);
+            }
+            else if (page === 'boxes') {
+                contentDiv.innerHTML = `<div class="card"><div class="card-header">Учёт коробок / Перепечатка бирок</div><div class="card-body"><div class="mb-3"><label>Номер бирки (label):</label><div class="input-group"><input type="text" id="reprintId" class="form-control"><button class="btn btn-primary" onclick="reprintLabel()">🖨️ Перепечатать</button></div><div id="reprintResult" class="mt-2"></div></div><hr><div id="boxesList">Загрузка последних коробок...</div></div></div>`;
+                // Пример вызова перепечатки
+                window.reprintLabel = async () => {
+                    const labelId = document.getElementById('reprintId').value.trim();
+                    if (!labelId) { alert('Введите номер бирки'); return; }
+                    try {
+                        const res = await fetch(`/api/reprint-label/${labelId}`, { method: 'POST' });
+                        const data = await res.json();
+                        document.getElementById('reprintResult').innerHTML = `<div class="alert alert-success">✅ ${data.message || 'Печать отправлена'}</div>`;
+                    } catch(e) { document.getElementById('reprintResult').innerHTML = `<div class="alert alert-danger">Ошибка: ${e.message}</div>`; }
+                };
+                // заглушка показа последних коробок
+                const boxesDiv = document.getElementById('boxesList');
+                if (boxesDiv) boxesDiv.innerHTML = '<p class="text-muted">История будет здесь позже...</p>';
+            }
+            else if (page === 'stats') {
+                contentDiv.innerHTML = `<div class="card"><div class="card-header">Детальная статистика</div><div class="card-body" id="statsDetail">Загрузка...</div></div>`;
+                const stats = await apiGet('stats');
+                const lines = await apiGet('lines');
+                let html = `<h5>Сегодня: ${new Date().toLocaleDateString()}</h5><table class="table"><thead><tr><th>Линия</th><th>Годные</th><th>Брак</th></tr></thead><tbody>`;
+                const goodMap = stats.goodParts || {};
+                const badMap = stats.badParts || {};
+                for (const line of lines) {
+                    const good = goodMap[line.name] || 0;
+                    const bad = badMap[line.name] || 0;
+                    html += `<tr><td>${line.name}</td><td class="text-success">${good}</td><td class="text-danger">${bad}</td></tr>`;
+                }
+                html += `</tbody></table><p>Всего коробок: ${stats.boxesClosed || 0}</p>`;
+                document.getElementById('statsDetail').innerHTML = html;
+            }
+            
+            // после смены страницы переподключаем ссылки
+            attachNavEvents();
+        }
+        
+        function attachNavEvents() {
+            document.querySelectorAll('[data-page]').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const page = link.getAttribute('data-page');
+                    if (page) loadPage(page);
+                    // обновить активный класс в меню
+                    document.querySelectorAll('.nav-link').forEach(nav => nav.classList.remove('active'));
+                    link.classList.add('active');
+                });
+            });
+        }
+        
+        // Запуск приложения
+        window.addEventListener('DOMContentLoaded', () => {
+            connectWebSocket();
+            loadPage('dashboard');
+            // Периодическое обновление таблицы и статуса (каждые 5 сек)
+            setInterval(() => {
+                if (currentPage === 'dashboard' || currentPage === 'lines') {
+                    refreshLinesTable();
+                    refreshStatsCards();
+                }
+            }, 5000);
+        });
+    </script>
+</body>
+</html>

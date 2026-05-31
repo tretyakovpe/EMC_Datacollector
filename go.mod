@@ -19,6 +19,7 @@ require (
 	github.com/golang-sql/sqlexp v0.1.0 // indirect
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
+	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/microsoft/go-mssqldb v1.10.0 // indirect
 	github.com/phin1x/go-ipp v1.7.0 // indirect
 	github.com/robinson/gos7 v0.0.0-20241205073040-7ea1d6fb9d20 // indirect

@@ -15,6 +15,7 @@ type AppConfig struct {
 	TrassirUsername      string `json:"trassir_username"`
 	TrassirPassword      string `json:"trassir_password"`
 	PlcPollingIntervalMs int    `json:"plc_polling_interval_ms"`
+	DefaultPrinter       string `json:"DefaultPrinter"`
 }
 
 // GlobalConfig хранит загруженные настройки, доступные из любого места программы
