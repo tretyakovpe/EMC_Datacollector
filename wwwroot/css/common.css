@@ -1,0 +1,75 @@
+/* Общие стили для всех экранов */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: #c0c0c0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Стили навбара в корпоративных цветах */
+.navbar {
+    background: linear-gradient(135deg, #a0a0a0 0%, #888888 100%) !important;
+    border-bottom: 2px solid #cc0000;
+}
+
+.navbar-brand {
+    color: #fc0206 !important;
+    font-weight: bold;
+    letter-spacing: 1px;
+}
+
+.nav-tabs .nav-link {
+    color: #333333 !important;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.nav-tabs .nav-link:hover {
+    color: #cc0000 !important;
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.nav-tabs .nav-link.active {
+    background: #cc0000 !important;
+    color: white !important;
+    border-color: #cc0000 !important;
+}
+
+/* Общие кнопки */
+.btn-primary {
+    background: #cc0000;
+    border-color: #990000;
+}
+
+.btn-primary:hover {
+    background: #990000;
+    border-color: #660000;
+}
+
+.btn-outline-primary {
+    color: #cc0000;
+    border-color: #cc0000;
+}
+
+.btn-outline-primary:hover {
+    background: #cc0000;
+    border-color: #cc0000;
+}
+
+/* Общие карточки (для других экранов) */
+.card {
+    background: #d4d4d4;
+    border: 1px solid #999999;
+    border-radius: 4px;
+}
+
+.card-header {
+    background: #c8c8c8;
+    border-bottom: 2px solid #cc0000;
+    font-weight: bold;
+    color: #333;
+}

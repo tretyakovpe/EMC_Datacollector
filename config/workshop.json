@@ -1,0 +1,18 @@
+{
+    "viewport": {
+        "defaultZoom": 0.8,
+        "minZoom": 0.3,
+        "maxZoom": 3.0,
+        "gridSize": 50,
+        "gridColor": "#2a2a3e"
+    },
+    "layout": {
+        "type": "grid",
+        "spacing": 180
+    },
+    "visual": {
+        "lineSize": 60,
+        "showConnections": true,
+        "showGrid": true
+    }
+}

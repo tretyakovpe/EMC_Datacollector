@@ -206,3 +206,20 @@ func GetLineConfig(lineName string) (*LineConfig, error) {
 
 	return &line, nil
 }
+
+// GetLineOnlineStatus - получить текущий статус линии
+func GetLineOnlineStatus(lineName string) (bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var isOnline bool
+	query := "SELECT is_online FROM [dbo].[plc] WHERE name = ?"
+	err := DB.QueryRowContext(ctx, query, lineName).Scan(&isOnline)
+	if err == sql.ErrNoRows {
+		return false, fmt.Errorf("линия %s не найдена", lineName)
+	}
+	if err != nil {
+		return false, fmt.Errorf("ошибка получения статуса: %w", err)
+	}
+	return isOnline, nil
+}

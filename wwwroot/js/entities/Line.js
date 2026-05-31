@@ -2,78 +2,90 @@ class LineEntity {
     constructor(data) {
         this.id = data.name;
         this.name = data.name;
-        this.x = data.x || 0;      // позиция в мире
+        this.x = data.x || 0;
         this.y = data.y || 0;
         this.isOnline = data.isOnline;
-        this.status = data.isOnline ? 'online' : 'offline';
         this.currentMaterial = null;
         this.currentCount = 0;
-        this.maxCount = 100;        // объём коробки
+        this.targetCount = 0;        // Целевое значение для плавности
+        this.maxCount = 100;
         this.printer = data.printer;
         this.ip = data.ip;
-        
-        // Анимация
         this.pulseIntensity = 0;
-        this.lastUpdate = Date.now();
+        this.cellSize = data.cellSize || 100;
     }
     
-    updateFromAPI(lineData) {
-        this.isOnline = lineData.isOnline;
-        this.status = lineData.isOnline ? 'online' : 'offline';
+    updateFromAPI(data) {
+        this.isOnline = data.isOnline;
     }
     
     updateProduction(material, count, maxCount) {
         this.currentMaterial = material;
-        this.currentCount = count;
+        this.targetCount = count;
         this.maxCount = maxCount || 100;
-        this.pulseIntensity = 0.8; // вспышка при производстве
+        this.pulseIntensity = 0.8;
+    }
+    
+    update() {
+        // Плавное обновление счётчика
+        if (Math.abs(this.currentCount - this.targetCount) > 0.1) {
+            this.currentCount += (this.targetCount - this.currentCount) * 0.2;
+        } else {
+            this.currentCount = this.targetCount;
+        }
     }
     
     draw(ctx, camera) {
-        const screen = camera.worldToScreen(this.x, this.y);
-        const size = 60 * camera.zoom;
+        // Обновляем анимацию
+        this.update();
         
-        // База (здание/станок)
-        ctx.save();
-        ctx.shadowBlur = 10 * camera.zoom;
+        const size = this.cellSize;
+        const radius = size / 2;
+        
+        ctx.shadowBlur = 15;
         ctx.shadowColor = this.isOnline ? '#00ff0040' : '#ff000040';
         
-        // Корпус
-        ctx.fillStyle = this.isOnline ? '#2a2a3e' : '#3a2a2e';
-        ctx.fillRect(screen.x - size/2, screen.y - size/2, size, size);
+        ctx.fillStyle = this.isOnline ? '#1a2a1a' : '#2a1a1a';
+        ctx.fillRect(this.x - radius, this.y - radius, size, size);
         
-        // Рамка статуса
         ctx.strokeStyle = this.isOnline ? '#0f0' : '#f00';
-        ctx.lineWidth = 3 * camera.zoom;
-        ctx.strokeRect(screen.x - size/2, screen.y - size/2, size, size);
+        ctx.lineWidth = 2;
+        ctx.strokeRect(this.x - radius, this.y - radius, size, size);
         
-        // Индикатор заполнения (сбоку)
-        const fillPercent = this.currentCount / this.maxCount;
-        const barHeight = size * fillPercent;
-        ctx.fillStyle = '#ffaa00';
-        ctx.fillRect(screen.x + size/2 + 5, screen.y + size/2 - barHeight, 8, barHeight);
-        
-        // Имя линии
-        ctx.font = `${12 * camera.zoom}px monospace`;
+        ctx.font = `bold ${14}px monospace`;
         ctx.fillStyle = '#ccc';
         ctx.textAlign = 'center';
-        ctx.fillText(this.name, screen.x, screen.y + size/2 + 15);
+        ctx.fillText(this.name, this.x, this.y - radius + 15);
         
-        // Материал и количество
+        ctx.font = `10px monospace`;
+        ctx.fillStyle = this.isOnline ? '#0f0' : '#f00';
+        ctx.fillText(this.isOnline ? '● ONLINE' : '○ OFFLINE', this.x, this.y - radius + 28);
+        
+        const fillPercent = Math.min(1, this.currentCount / this.maxCount);
+        const barWidth = size - 10;
+        const barHeight = 4;
+        const barX = this.x - radius + 5;
+        const barY = this.y + radius - 10;
+        
+        ctx.fillStyle = '#2a2a2a';
+        ctx.fillRect(barX, barY, barWidth, barHeight);
+        ctx.fillStyle = '#ffaa00';
+        ctx.fillRect(barX, barY, barWidth * fillPercent, barHeight);
+        
         if (this.currentMaterial) {
-            ctx.font = `${10 * camera.zoom}px monospace`;
+            ctx.font = `10px monospace`;
             ctx.fillStyle = '#0f0';
-            ctx.fillText(`${this.currentMaterial} ${this.currentCount}/${this.maxCount}`, 
-                         screen.x, screen.y - size/2 - 5);
+            const displayCount = Math.round(this.currentCount);
+            ctx.fillText(`${this.currentMaterial} ${displayCount}/${this.maxCount}`, 
+                         this.x, this.y + radius - 5);
         }
         
-        // Эффект пульсации при производстве
         if (this.pulseIntensity > 0) {
-            ctx.fillStyle = `rgba(0, 255, 0, ${this.pulseIntensity * 0.5})`;
-            ctx.fillRect(screen.x - size/2, screen.y - size/2, size, size);
-            this.pulseIntensity *= 0.95;
+            ctx.fillStyle = `rgba(0, 255, 0, ${this.pulseIntensity * 0.3})`;
+            ctx.fillRect(this.x - radius, this.y - radius, size, size);
+            this.pulseIntensity *= 0.9;
         }
         
-        ctx.restore();
+        ctx.shadowBlur = 0;
     }
 }

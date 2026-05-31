@@ -5,6 +5,7 @@ import (
 	"datacollector/label"
 	"datacollector/logger"
 	"encoding/json"
+	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -203,6 +204,37 @@ func StartServer(debugMode bool, logChan <-chan string) {
 		http.ServeFile(w, r, fullPath)
 	})
 
+	// Раздача изображений
+	mux.HandleFunc("/images/", func(w http.ResponseWriter, r *http.Request) {
+		fullPath := filepath.Join(staticDir, r.URL.Path)
+
+		if !strings.HasPrefix(fullPath, staticDir) {
+			http.NotFound(w, r)
+			return
+		}
+
+		if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+			http.NotFound(w, r)
+			return
+		}
+
+		// Определяем MIME тип по расширению
+		ext := filepath.Ext(fullPath)
+		switch ext {
+		case ".png":
+			w.Header().Set("Content-Type", "image/png")
+		case ".jpg", ".jpeg":
+			w.Header().Set("Content-Type", "image/jpeg")
+		case ".svg":
+			w.Header().Set("Content-Type", "image/svg+xml")
+		case ".ico":
+			w.Header().Set("Content-Type", "image/x-icon")
+		}
+
+		w.Header().Del("X-Content-Type-Options")
+		http.ServeFile(w, r, fullPath)
+	})
+
 	// Корневой маршрут
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
@@ -218,11 +250,37 @@ func StartServer(debugMode bool, logChan <-chan string) {
 		globalHub.ServeWs(w, r)
 	})
 
+	// Раздача конфигов
+	mux.HandleFunc("/config/", func(w http.ResponseWriter, r *http.Request) {
+		fullPath := filepath.Join(rootDir, r.URL.Path)
+
+		if !strings.HasPrefix(fullPath, rootDir) {
+			http.NotFound(w, r)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Del("X-Content-Type-Options")
+		http.ServeFile(w, r, fullPath)
+	})
+
 	// REST API
 	mux.HandleFunc("/api/lines", handleGetLines)
 	mux.HandleFunc("/api/current-box/", handleGetCurrentBox)
 	mux.HandleFunc("/api/stats", handleGetStats)
 	mux.HandleFunc("/api/reprint-label/", handleReprintLabel)
+	// Изменить статус линии (вкл/выкл)
+	mux.HandleFunc("/api/lines/", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			// POST /api/lines/{lineName}/status - изменить статус
+			handleSetLineStatus(w, r)
+		case http.MethodGet:
+			handleGetLineStatus(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
 
 	addr := "0.0.0.0:" + port
 	listener, err := net.Listen("tcp", addr)
@@ -342,5 +400,67 @@ func handleReprintLabel(w http.ResponseWriter, r *http.Request) {
 		"status":  "ok",
 		"message": "Reprint sent to printer",
 		"labelId": labelID,
+	})
+}
+
+// handleSetLineStatus - установить статус линии (вкл/выкл)
+func handleSetLineStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Пытаемся получить имя линии из query параметра
+	lineName := r.URL.Query().Get("name")
+
+	// Парсим тело запроса
+	var req struct {
+		IsOnline bool `json:"isOnline"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Обновляем статус в БД
+	database.UpdateLineOnlineStatus(lineName, req.IsOnline)
+
+	logger.Info("[API] Статус линии %s изменён на: %v", lineName, req.IsOnline)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":   "ok",
+		"message":  fmt.Sprintf("Line %s status changed to %v", lineName, req.IsOnline),
+		"line":     lineName,
+		"isOnline": req.IsOnline,
+	})
+}
+
+// handleGetLineStatus - получить статус линии
+func handleGetLineStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	parts := strings.Split(r.URL.Path, "/")
+	if len(parts) < 3 {
+		http.Error(w, "Missing line name", http.StatusBadRequest)
+		return
+	}
+	lineName := parts[2]
+
+	// Получаем статус из БД
+	status, err := database.GetLineOnlineStatus(lineName)
+	if err != nil {
+		logger.Error("API /api/lines/%s/status: %v", lineName, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"line":     lineName,
+		"isOnline": status,
 	})
 }

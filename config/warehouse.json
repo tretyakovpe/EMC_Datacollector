@@ -1,0 +1,15 @@
+{
+    "viewport": {
+        "defaultZoom": 0.6,
+        "minZoom": 0.3,
+        "maxZoom": 2.0,
+        "gridSize": 100,
+        "gridColor": "#2a3a3e"
+    },
+    "layout": {
+        "type": "shelves",
+        "rows": 2,
+        "aisleWidth": 150,
+        "stacks": []
+    }
+}
