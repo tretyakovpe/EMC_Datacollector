@@ -4,11 +4,11 @@ import (
 	"context"
 	"datacollector/config"
 	"datacollector/database"
+	"datacollector/events"
 	"datacollector/label"
 	"datacollector/logger"
 	"datacollector/plc"
 	"datacollector/trassir"
-	"datacollector/webserver"
 	"flag"
 	"os"
 	"os/signal"
@@ -37,15 +37,17 @@ func main() {
 	lineName := flag.String("line", "", "Имя линии для отладки (работаем только с этой линией)")
 	overrideIP := flag.String("ip", "", "Переопределить IP адрес ПЛК (для отладки)")
 	useDebugDB := flag.Bool("debug-db", false, "Использовать тестовую базу данных для записи")
+	mesURL := config.GlobalConfig.MESServerURL
+	if mesURL == "" {
+		mesURL = "http://localhost:8080/api/events"
+	}
+	events.SetMESURL(mesURL)
 	flag.Parse()
 
 	if err := logger.Init(); err != nil {
 		return
 	}
 	defer logger.Close()
-
-	// Запуск веб-сервера
-	webserver.StartServer(*useDebugDB, logger.LogChannel)
 
 	if err := config.LoadConfig(); err != nil {
 		logger.Error("Ошибка загрузки конфигурации: %v", err)
@@ -170,7 +172,7 @@ func main() {
 				Rack:            0,
 				Slot:            2,
 				Camera:          cameraGuid,
-				Printer:         printerAddr,
+				Printer:         strings.TrimSpace(printerAddr),
 				Interval:        interval,
 				DisablePLCWrite: *debugMode,
 				hasDB1013:       nil,

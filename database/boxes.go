@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"datacollector/events"
 	"datacollector/logger"
 	"fmt"
 	"os"
@@ -107,6 +108,10 @@ func CloseAndProduceBox(lineName string, materialCode string, amount float64) st
 	}
 
 	logger.Info("[%s] УСПЕХ: Коробка %s произведена. LabelNumber: %s", lineName, materialCode, labelNumber)
+	if labelNumber != "" {
+		// Отправляем событие в MES
+		events.SendBoxClosedEvent(lineName, materialCode, labelNumber, int(amount))
+	}
 	return labelNumber
 }
 

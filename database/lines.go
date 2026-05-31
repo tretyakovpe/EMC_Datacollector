@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"datacollector/events"
 	"datacollector/logger"
 	"fmt"
 	"strings"
@@ -101,6 +102,7 @@ func UpdateLineOnlineStatus(lineName string, isOnline bool) {
 		status = "ONLINE"
 	}
 	logger.Info("[%s] Статус линии в БД изменен на: %s", lineName, status)
+	events.SendLineStatusEvent(lineName, isOnline)
 }
 
 // GetLinesStatusForAPI возвращает статус линий для API
