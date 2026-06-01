@@ -33,27 +33,40 @@ type Line struct {
 }
 
 func main() {
+	// Парсим флаги
 	debugMode := flag.Bool("debug", false, "Режим отладки (НЕ сбрасываем флаги в ПЛК)")
 	lineName := flag.String("line", "", "Имя линии для отладки (работаем только с этой линией)")
-	overrideIP := flag.String("ip", "", "Переопределить IP адрес ПЛК (для отладки)")
 	useDebugDB := flag.Bool("debug-db", false, "Использовать тестовую базу данных для записи")
-	mesURL := config.GlobalConfig.MESServerURL
-	if mesURL == "" {
-		mesURL = "http://localhost:8080/api/events"
-	}
-	events.SetMESURL(mesURL)
 	flag.Parse()
 
+	// 1. Инициализируем логгер
 	if err := logger.Init(); err != nil {
 		return
 	}
 	defer logger.Close()
 
+	// 2. Загружаем конфигурацию
 	if err := config.LoadConfig(); err != nil {
 		logger.Error("Ошибка загрузки конфигурации: %v", err)
 		return
 	}
 
+	// 3. Настраиваем URL для отправки событий в MES (после загрузки конфига)
+	mesURL := config.GlobalConfig.MESServerURL
+	if mesURL == "" {
+		mesURL = "http://localhost:8080/api/events"
+	}
+	events.SetMESURL(mesURL)
+	logger.Info("MES сервер: %s", mesURL)
+
+	// Режим отладки - без сброса флагов на ПЛК
+	if *debugMode {
+		logger.Info("Сброс флагов в ПЛК: ОТКЛЮЧЁН")
+	} else {
+		logger.Info("Сброс флагов в ПЛК: ВКЛЮЧЁН")
+	}
+
+	// 4. Выбираем строку подключения к БД
 	var connString string
 	if *useDebugDB {
 		logger.Info("ВНИМАНИЕ: Используется ТЕСТОВАЯ база данных!")
@@ -63,6 +76,7 @@ func main() {
 		connString = config.GlobalConfig.DbProdConnection
 	}
 
+	// 5. Подключаемся к БД
 	if err := database.Init(connString); err != nil {
 		logger.Error("Не удалось запустить сборщик: %v", err)
 		return
@@ -73,19 +87,8 @@ func main() {
 
 	var activeLines []Line
 
-	// Режим отладки (указан флаг -line)
+	// 6. Загружаем линии (с учётом флага -line)
 	if *lineName != "" {
-		logger.Info("=== РЕЖИМ ОТЛАДКИ ===")
-		logger.Info("Линия: %s", *lineName)
-		if *overrideIP != "" {
-			logger.Info("IP адрес: %s (переопределён)", *overrideIP)
-		}
-		if *debugMode {
-			logger.Info("Сброс флагов в ПЛК: ОТКЛЮЧЁН")
-		} else {
-			logger.Info("Сброс флагов в ПЛК: ВКЛЮЧЁН")
-		}
-
 		// Загружаем конфигурацию линии из БД
 		lineConfig, err := database.GetLineConfig(*lineName)
 		if err != nil {
@@ -95,12 +98,6 @@ func main() {
 		if lineConfig == nil {
 			logger.Error("Линия %s не найдена в БД или не активна", *lineName)
 			return
-		}
-
-		// Переопределяем IP если указан флаг
-		plcIP := strings.TrimSpace(lineConfig.IP)
-		if *overrideIP != "" {
-			plcIP = *overrideIP
 		}
 
 		// Определяем принтер (если в конфиге линии нет, используем дефолтный)
@@ -113,7 +110,7 @@ func main() {
 		}
 
 		// Определяем камеру
-		cameraGuid := "YF8Npzk1" // значение по умолчанию
+		cameraGuid := "YF8Npzk1"
 		if lineConfig.Camera.Valid && lineConfig.Camera.String != "" {
 			cameraGuid = lineConfig.Camera.String
 		}
@@ -121,13 +118,14 @@ func main() {
 		activeLines = []Line{
 			{
 				Name:            strings.TrimSpace(lineConfig.Name),
-				IP:              plcIP,
+				IP:              strings.TrimSpace(lineConfig.IP),
 				Rack:            0,
 				Slot:            2,
 				Camera:          cameraGuid,
 				Printer:         printerAddr,
 				Interval:        interval,
-				DisablePLCWrite: *debugMode, // В режиме отладки не сбрасываем флаги
+				DisablePLCWrite: *debugMode,
+				hasDB1013:       nil,
 			},
 		}
 
@@ -139,9 +137,7 @@ func main() {
 		logger.Info("  - Сброс флагов: %v", !activeLines[0].DisablePLCWrite)
 
 	} else {
-		// Боевой режим - загружаем все активные линии из БД
-		logger.Info("=== БОЕВОЙ РЕЖИМ ===")
-
+		// Загружаем все активные линии из БД
 		dbLines, err := database.GetActiveLines()
 		if err != nil {
 			logger.Error("Ошибка загрузки линий из БД: %v", err)
@@ -154,13 +150,11 @@ func main() {
 		}
 
 		for _, dbLine := range dbLines {
-			// Получаем камеру (если есть)
-			cameraGuid := "YF8Npzk1" // значение по умолчанию
+			cameraGuid := "YF8Npzk1"
 			if dbLine.Camera.Valid {
 				cameraGuid = dbLine.Camera.String
 			}
 
-			// Получаем принтер (если есть)
 			printerAddr := config.GlobalConfig.DefaultPrinter
 			if dbLine.Printer.Valid && strings.TrimSpace(dbLine.Printer.String) != "" {
 				printerAddr = strings.TrimSpace(dbLine.Printer.String)
@@ -172,7 +166,7 @@ func main() {
 				Rack:            0,
 				Slot:            2,
 				Camera:          cameraGuid,
-				Printer:         strings.TrimSpace(printerAddr),
+				Printer:         printerAddr,
 				Interval:        interval,
 				DisablePLCWrite: *debugMode,
 				hasDB1013:       nil,
@@ -186,6 +180,7 @@ func main() {
 		}
 	}
 
+	// 7. Запускаем опрос линий
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -199,6 +194,7 @@ func main() {
 		}(line)
 	}
 
+	// 8. Ожидаем сигнал завершения
 	stopChan := make(chan os.Signal, 1)
 	signal.Notify(stopChan, syscall.SIGINT, syscall.SIGTERM)
 
@@ -277,7 +273,6 @@ func pollPartData(client gos7.Client, line *Line) bool {
 		return true
 	}
 
-	// Читаем данные из DB1013
 	partData := make([]byte, 36)
 	err := client.AGReadDB(1013, 0, 36, partData)
 	if err != nil {
@@ -305,7 +300,7 @@ func pollPartData(client gos7.Client, line *Line) bool {
 			go trassir.ProcessNokVideoAsync(line.Name, line.Camera, partMaterial, counter, mkmData)
 		}
 
-		// Сбрасываем флаг PartReady если разрешено
+		// Сбрасываем флаг PartReady только если НЕ режим отладки
 		if !line.DisablePLCWrite {
 			plc.SetFlagAt(client, line.Name, plc.Partready)
 		} else {
@@ -320,7 +315,7 @@ func pollBoxData(client gos7.Client, line Line) bool {
 	err := client.AGReadDB(1012, 0, 64, boxData)
 	if err != nil {
 		logger.Error("[%s] Ошибка чтения DB1012: %v", line.Name, err)
-		return false // DB1012 критичен, без него останавливаем опрос
+		return false
 	}
 
 	if plc.GetBitAt(boxData, 1, 0) { // BoxReady
@@ -351,7 +346,7 @@ func pollBoxData(client gos7.Client, line Line) bool {
 			}(boxInfo)
 		}
 
-		// Сбрасываем флаг BoxReady если разрешено
+		// Сбрасываем флаг BoxReady только если НЕ режим отладки
 		if !line.DisablePLCWrite {
 			plc.SetFlagAt(client, line.Name, plc.Boxready)
 		} else {
@@ -363,7 +358,6 @@ func pollBoxData(client gos7.Client, line Line) bool {
 
 // checkDBExists проверяет существование DB в ПЛК
 func checkDBExists(client gos7.Client, dbNumber int) bool {
-	// Пробуем прочитать 1 байт из DB
 	testData := make([]byte, 36)
 	err := client.AGReadDB(dbNumber, 0, 36, testData)
 	return err == nil
