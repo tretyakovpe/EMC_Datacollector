@@ -82,3 +82,11 @@ func SendLineStatusEvent(line string, isOnline bool) {
 		"isOnline": isOnline,
 	})
 }
+
+// SendLineActiveEvent отправляет событие об включении/отключении линии
+func SendLineActiveEvent(line string, isActive bool) {
+	SendEvent("line_active", map[string]interface{}{
+		"line":     line,
+		"isActive": isActive,
+	})
+}

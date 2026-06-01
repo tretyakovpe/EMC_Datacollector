@@ -137,8 +137,8 @@ func main() {
 		logger.Info("  - Сброс флагов: %v", !activeLines[0].DisablePLCWrite)
 
 	} else {
-		// Загружаем все активные линии из БД
-		dbLines, err := database.GetActiveLines()
+		// Загружаем все линии из БД
+		dbLines, err := database.GetAllLines()
 		if err != nil {
 			logger.Error("Ошибка загрузки линий из БД: %v", err)
 			return
@@ -228,6 +228,14 @@ func runLinePolling(ctx context.Context, line Line) {
 			logger.Info("[%s] Поток опроса остановлен.", line.Name)
 			return
 		case <-ticker.C:
+			isActive, err := database.IsLineActive(line.Name)
+			if err != nil {
+				logger.Error("[%s] Ошибка проверки активности: %v", line.Name, err)
+				continue
+			}
+			if !isActive {
+				return
+			}
 			if !isConnected {
 				if err := handler.Connect(); err != nil {
 					failCounter++
@@ -303,8 +311,6 @@ func pollPartData(client gos7.Client, line *Line) bool {
 		// Сбрасываем флаг PartReady только если НЕ режим отладки
 		if !line.DisablePLCWrite {
 			plc.SetFlagAt(client, line.Name, plc.Partready)
-		} else {
-			logger.Debug("[%s] Режим отладки: сброс PartReady отключён", line.Name)
 		}
 	}
 	return true
@@ -349,8 +355,6 @@ func pollBoxData(client gos7.Client, line Line) bool {
 		// Сбрасываем флаг BoxReady только если НЕ режим отладки
 		if !line.DisablePLCWrite {
 			plc.SetFlagAt(client, line.Name, plc.Boxready)
-		} else {
-			logger.Debug("[%s] Режим отладки: сброс BoxReady отключён", line.Name)
 		}
 	}
 	return true

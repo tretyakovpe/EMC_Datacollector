@@ -44,7 +44,7 @@ type ExportTaskResponse struct {
 
 // ProcessNokVideoAsync запускается асинхронно в горутине при браке
 func ProcessNokVideoAsync(lineName string, cameraGuid string, materialCode string, counter int, mkm []byte) {
-	logger.Info("[%s] [ФОН] Запущен фоновый процесс сохранения брака. Ожидаем 15 сек...", lineName)
+	logger.Info("[%s] [VIDEO] Запущен фоновый процесс сохранения брака. Ожидаем 15 сек...", lineName)
 
 	// Засыпаем на 15 секунд, давая Трассиру физически дописать буфер видео
 	time.Sleep(15 * time.Second)
@@ -52,7 +52,7 @@ func ProcessNokVideoAsync(lineName string, cameraGuid string, materialCode strin
 	moment := time.Now()
 	videoFileName, err := saveVideo(lineName, cameraGuid, moment)
 	if err != nil {
-		logger.Error("[%s] [ФОН] Сбой обработки видео Трассира: %v. Пишем в базу код '0'", lineName, err)
+		logger.Error("[%s] [VIDEO] Сбой обработки видео Трассира: %v. Пишем в базу код '0'", lineName, err)
 		videoFileName = "0"
 	}
 
@@ -63,7 +63,7 @@ func ProcessNokVideoAsync(lineName string, cameraGuid string, materialCode strin
 // saveVideo выполняет все 5 шагов запроса и сохранения файла
 func saveVideo(lineName string, cameraGuid string, moment time.Time) (string, error) {
 	// Шаг 1: Получаем session ID (sid)
-	loginUrl := fmt.Sprintf("%slogin?password=%s", config.GlobalConfig.TrassirAddress, config.GlobalConfig.TrassirPassword)
+	loginUrl := fmt.Sprintf("%s/login?password=%s", config.GlobalConfig.TrassirAddress, config.GlobalConfig.TrassirPassword)
 	resp, err := httpClient.Get(loginUrl)
 	if err != nil {
 		return "", fmt.Errorf("ошибка запроса авторизации: %w", err)
@@ -138,6 +138,6 @@ func saveVideo(lineName string, cameraGuid string, moment time.Time) (string, er
 		return "", fmt.Errorf("ошибка записи файла на диск: %w", err)
 	}
 
-	logger.Info("[%s] [ФОН] Видео брака успешно скачано и сохранено: %s", lineName, filename)
+	logger.Info("[%s] [VIDEO] Видео брака успешно скачано и сохранено: %s", lineName, filename)
 	return filename, nil
 }

@@ -21,6 +21,62 @@ type LineConfig struct {
 	Camera     sql.NullString
 }
 
+// GetAllLines загружает все линии из таблицы plc
+func GetAllLines() ([]LineConfig, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	query := `
+		SELECT 
+			[name],
+			[ip],
+			[port],
+			[printer],
+			[print_label],
+			[is_online],
+			[last_check],
+			[is_active],
+			[camera]
+		FROM [dbo].[plc]
+		ORDER BY [name]`
+
+	rows, err := DB.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка запроса линий: %w", err)
+	}
+	defer rows.Close()
+
+	var lines []LineConfig
+	for rows.Next() {
+		var line LineConfig
+		var lastCheck sql.NullTime
+
+		err := rows.Scan(
+			&line.Name,
+			&line.IP,
+			&line.Port,
+			&line.Printer,
+			&line.PrintLabel,
+			&line.IsOnline,
+			&lastCheck,
+			&line.IsActive,
+			&line.Camera,
+		)
+		if err != nil {
+			logger.Error("Ошибка сканирования строки линии: %v", err)
+			continue
+		}
+
+		if lastCheck.Valid {
+			line.LastCheck = lastCheck.Time
+		}
+
+		lines = append(lines, line)
+	}
+
+	return lines, nil
+}
+
 // GetActiveLines загружает активные линии из таблицы plc
 func GetActiveLines() ([]LineConfig, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -102,6 +158,24 @@ func UpdateLineOnlineStatus(lineName string, isOnline bool) {
 	}
 	logger.Info("[%s] Статус линии в БД изменен на: %s", lineName, status)
 	events.SendLineStatusEvent(lineName, isOnline)
+}
+
+// IsLineActive проверяет, активна ли линия в БД
+func IsLineActive(lineName string) (bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var isActive bool
+	query := "SELECT is_active FROM [dbo].[plc] WHERE [name] = ?"
+	err := DB.QueryRowContext(ctx, query, lineName).Scan(&isActive)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("ошибка проверки активности: %w", err)
+	}
+	return isActive, nil
+
 }
 
 /*// GetLinesStatusForAPI возвращает статус линий для API
