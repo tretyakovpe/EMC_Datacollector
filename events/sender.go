@@ -63,15 +63,16 @@ func SendBoxClosedEvent(line, material, labelCode string, amount int) {
 }
 
 // SendPartEvent отправляет событие о производстве детали
-func SendPartEvent(line, material string, counter int, isGood bool) {
+func SendPartEvent(line, material string, counter int, boxVolume int, isGood bool) {
 	eventType := "part_ok"
 	if !isGood {
 		eventType = "part_nok"
 	}
 	SendEvent(eventType, map[string]interface{}{
-		"line":     line,
-		"material": material,
-		"counter":  counter,
+		"line":      line,
+		"material":  material,
+		"counter":   counter,
+		"boxVolume": boxVolume,
 	})
 }
 

@@ -2,7 +2,6 @@ package database
 
 import (
 	"context"
-	"datacollector/events"
 	"datacollector/logger"
 	"time"
 )
@@ -19,8 +18,8 @@ func SaveGoodPart(lineName string, materialCode string, counter int) {
 			logger.Error("[%s] Ошибка сохранения детали %s: %v", lineName, materialCode, err)
 			return
 		}*/
-	logger.Info("[%s] Деталь %s (№%d)", lineName, materialCode, counter)
-	events.SendPartEvent(lineName, materialCode, counter, true)
+	//logger.Info("[%s] Деталь %s (№%d)", lineName, materialCode, counter)
+	//events.SendPartEvent(lineName, materialCode, counter, true)
 }
 
 // SaveBadPart фиксирует бракованную деталь
@@ -37,8 +36,8 @@ func SaveBadPart(lineName string, materialCode string, counter int, mkm []byte, 
 		return
 	}
 
-	logger.Info("[%s] Брак детали %s зафиксирован. Видео: %s", lineName, materialCode, videoFileName)
-	events.SendPartEvent(lineName, materialCode, counter, false)
+	//logger.Info("[%s] Брак детали %s зафиксирован. Видео: %s", lineName, materialCode, videoFileName)
+	//events.SendPartEvent(lineName, materialCode, counter, false)
 }
 
 // GetTodaysPartsStats возвращает статистику по деталям за сегодня
