@@ -7,16 +7,24 @@ import (
 	"path/filepath"
 )
 
+// ShiftConfig настройки смены
+type ShiftConfig struct {
+	Name  string `json:"name"`
+	Start string `json:"start"`
+	End   string `json:"end"`
+}
+
 // AppConfig описывает структуру нашего файла настроек
 type AppConfig struct {
-	DbProdConnection     string `json:"db_prod_connection"`
-	DbTestConnection     string `json:"db_test_connection"`
-	TrassirAddress       string `json:"trassir_address"`
-	TrassirUsername      string `json:"trassir_username"`
-	TrassirPassword      string `json:"trassir_password"`
-	PlcPollingIntervalMs int    `json:"plc_polling_interval_ms"`
-	DefaultPrinter       string `json:"DefaultPrinter"`
-	MESServerURL         string `json:"mesServerURL"`
+	DbProdConnection     string                 `json:"db_prod_connection"`
+	DbTestConnection     string                 `json:"db_test_connection"`
+	TrassirAddress       string                 `json:"trassir_address"`
+	TrassirUsername      string                 `json:"trassir_username"`
+	TrassirPassword      string                 `json:"trassir_password"`
+	PlcPollingIntervalMs int                    `json:"plc_polling_interval_ms"`
+	DefaultPrinter       string                 `json:"DefaultPrinter"`
+	MESServerURL         string                 `json:"mesServerURL"`
+	Shifts               map[string]ShiftConfig `json:"shifts"`
 }
 
 // GlobalConfig хранит загруженные настройки, доступные из любого места программы

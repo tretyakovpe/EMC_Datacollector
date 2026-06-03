@@ -7,19 +7,22 @@ import (
 )
 
 // SaveGoodPart фиксирует качественную деталь
-// Нужно полностью переделать. Даже таблицы такой нет.
+// SaveGoodPart фиксирует качественную деталь (обновляет план, НЕ пишет в prod)
 func SaveGoodPart(lineName string, materialCode string, counter int) {
-	/*	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
+	// Получаем MaterialID
+	materialID, err := GetMaterialID(materialCode)
+	if err != nil {
+		logger.Error("[%s] Ошибка получения MaterialID для %s: %v", lineName, materialCode, err)
+		return
+	}
 
-		query := "INSERT INTO prod (MaterialCode, LineName, Counter, Datetime) VALUES (?, ?, ?, ?)"
-		_, err := DB.ExecContext(ctx, query, materialCode, lineName, counter, time.Now())
-		if err != nil {
-			logger.Error("[%s] Ошибка сохранения детали %s: %v", lineName, materialCode, err)
-			return
-		}*/
-	//logger.Info("[%s] Деталь %s (№%d)", lineName, materialCode, counter)
-	//events.SendPartEvent(lineName, materialCode, counter, true)
+	// Обновляем ActualAmount в планах
+	if err := UpdatePlanActual(materialID, time.Now()); err != nil {
+		logger.Error("[%s] Ошибка обновления плана для материала %s: %v", lineName, materialCode, err)
+		return
+	}
+
+	logger.Info("[%s] Обновлён план для детали %s (№%d)", lineName, materialCode, counter)
 }
 
 // SaveBadPart фиксирует бракованную деталь

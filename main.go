@@ -274,7 +274,7 @@ func pollPartData(client gos7.Client, line *Line) bool {
 			logger.Info("[%s] DB1013 не найдена в ПЛК, опрос деталей отключён", line.Name)
 			return true
 		}
-		logger.Info("[%s] DB1013 найдена, опрос деталей включён", line.Name)
+		logger.Debug("[%s] DB1013 найдена, опрос деталей включён", line.Name)
 	}
 
 	// Если DB1013 нет - просто возвращаем успех
