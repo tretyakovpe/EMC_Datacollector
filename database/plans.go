@@ -40,13 +40,13 @@ func UpdatePlanActual(materialID int, t time.Time) error {
 
 	// Если план не найден, создаём НЕЗАПЛАНИРОВАННЫЙ (статус не меняется)
 	if rowsAffected == 0 {
-		return createUnplannedPlan(materialID, planDateStr, shift)
+		return CreateUnplannedPlan(materialID, planDateStr, shift)
 	}
 
 	return nil
 }
 
-func createUnplannedPlan(materialID int, planDateStr string, shift string) error {
+func CreateUnplannedPlan(materialID int, planDateStr string, shift string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -67,7 +67,7 @@ func createUnplannedPlan(materialID int, planDateStr string, shift string) error
 }
 
 // sendPlanUpdateEvent отправляет событие об обновлении плана в MES
-func sendPlanUpdateEvent(planID, materialID int, planDate time.Time, shift string, plannedAmount, actualAmount int, status string) {
+func SendPlanUpdateEvent(planID, materialID int, planDate time.Time, shift string, plannedAmount, actualAmount int, status string) {
 	// Получаем код материала
 	materialCode, err := GetMaterialCodeByID(materialID)
 	if err != nil {

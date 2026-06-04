@@ -291,20 +291,19 @@ func pollPartData(client gos7.Client, line *Line) bool {
 	counter := plc.GetIntAt(partData, 32)
 	partMaterial := plc.GetStringAt(partData, 14)
 	boxVolume := plc.GetIntAt(partData, 34)
-	// Отправляем текущую информацию по линиям
-	events.SendEvent("line_card_update", map[string]interface{}{
-		"line":      line.Name,
-		"material":  partMaterial,
-		"counter":   counter,
-		"boxVolume": boxVolume,
-	})
-
-	if plc.GetBitAt(partData, 2, 2) { // PartReady
-		partOk := plc.GetBitAt(partData, 0, 0)
-		partNOk := plc.GetBitAt(partData, 0, 1)
-		// Отправляем только если counter увеличился
-		if counter != line.lastProcessedCounter {
-			line.lastProcessedCounter = counter
+	// Отправляем только если counter увеличился
+	if counter != line.lastProcessedCounter {
+		line.lastProcessedCounter = counter
+		// Сообщение для обновления карточек на веб-странице
+		events.SendEvent("line_card_update", map[string]interface{}{
+			"line":      line.Name,
+			"material":  partMaterial,
+			"counter":   counter,
+			"boxVolume": boxVolume,
+		})
+		if plc.GetBitAt(partData, 2, 2) { // PartReady
+			partOk := plc.GetBitAt(partData, 0, 0)
+			partNOk := plc.GetBitAt(partData, 0, 1)
 			if partOk {
 				database.SaveGoodPart(line.Name, partMaterial, counter)
 				logger.Info("[%s] собрано %s %d/%d", line.Name, partMaterial, counter, boxVolume)
@@ -351,7 +350,6 @@ func pollBoxData(client gos7.Client, line Line) bool {
 				Description: materialDescription,
 				Amount:      int(amount),
 				Line:        line.Name,
-				Shift:       "A",
 				Date:        time.Now(),
 			}
 
