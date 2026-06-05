@@ -39,6 +39,16 @@
       "Format": ""
     },
     {
+      "Name": "Description",
+      "X": 10,
+      "Y": 44,
+      "Width": 110,
+      "Height": 32,
+      "FontSize": 12,
+      "FontWeight": "normal",
+      "Format": ""
+    },
+    {
       "Name": "CustomerCode",
       "X": 120,
       "Y": 30,
@@ -64,7 +74,7 @@
       "FontWeight": "normal",
       "Width": 50,
       "Height": 15,
-      "Format": "dd:MM:yyyy"
+      "Format": "dd.MM.yyyy"
     },
     {
       "Name": "Time",
@@ -78,7 +88,7 @@
     },
     {
       "Name": "Amount",
-      "X": 150,
+      "X": 140,
       "Y": 80,
       "FontSize": 16,
       "FontWeight": "bold",

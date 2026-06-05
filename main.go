@@ -26,6 +26,7 @@ type Line struct {
 	Rack                 int
 	Slot                 int
 	Camera               string
+	PrintLabel           bool
 	Printer              string
 	Interval             time.Duration
 	DisablePLCWrite      bool
@@ -123,6 +124,7 @@ func main() {
 				Rack:            0,
 				Slot:            2,
 				Camera:          cameraGuid,
+				PrintLabel:      true,
 				Printer:         printerAddr,
 				Interval:        interval,
 				DisablePLCWrite: *debugMode,
@@ -167,6 +169,7 @@ func main() {
 				Rack:            0,
 				Slot:            2,
 				Camera:          cameraGuid,
+				PrintLabel:      dbLine.PrintLabel,
 				Printer:         printerAddr,
 				Interval:        interval,
 				DisablePLCWrite: *debugMode,
@@ -339,18 +342,28 @@ func pollBoxData(client gos7.Client, line Line) bool {
 	if plc.GetBitAt(boxData, 1, 0) { // BoxReady
 		material := plc.GetStringAt(boxData, 2)
 		amount := plc.GetRealAt(boxData, 22)
-		materialDescription := plc.GetWin1251String(boxData, 28, 36)
-
+		//materialDescription := plc.GetWin1251String(boxData, 28, 36)
+		mat, err := database.GetMaterialInfo(material)
+		if err != nil {
+			logger.Error("[%s] Ошибка получения материала %s: %v", line.Name, material, err)
+			return false
+		}
+		if mat == nil {
+			logger.Error("[%s] Материал %s не найден в БД", line.Name, material)
+			return false
+		}
 		labelCode := database.CloseAndProduceBox(line.Name, material, amount)
 
-		if labelCode != "" {
+		if labelCode != "" && line.PrintLabel {
 			boxInfo := label.BoxData{
-				LabelCode:   labelCode,
-				Material:    material,
-				Description: materialDescription,
-				Amount:      int(amount),
-				Line:        line.Name,
-				Date:        time.Now(),
+				LabelCode:      labelCode,
+				Material:       mat.MaterialCode,
+				CustomerNumber: mat.CustomerCode,
+				Destination:    mat.Destination,
+				Description:    mat.Description,
+				Amount:         int(amount),
+				Line:           line.Name,
+				Date:           time.Now(),
 			}
 
 			go func(info label.BoxData) {

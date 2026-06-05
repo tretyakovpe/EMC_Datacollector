@@ -17,6 +17,7 @@ type Material struct {
 	Netto        int
 	Brutto       int
 	QuantityInHU int
+	Description  string
 }
 
 // GetMaterialID возвращает ID материала по коду
@@ -51,7 +52,8 @@ func GetMaterialInfo(materialCode string) (*Material, error) {
 			HU,
 			Netto,
 			Brutto,
-			QuantityInHU
+			QuantityInHU,
+			Description
 		FROM [dbo].[materials]
 		WHERE MaterialCode = ?`
 
@@ -64,6 +66,7 @@ func GetMaterialInfo(materialCode string) (*Material, error) {
 		&material.Netto,
 		&material.Brutto,
 		&material.QuantityInHU,
+		&material.Description,
 	)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("материал %s не найден", materialCode)
@@ -90,7 +93,8 @@ func GetMaterialByID(materialID int) (*Material, error) {
 			HU,
 			Netto,
 			Brutto,
-			QuantityInHU
+			QuantityInHU,
+			Description
 		FROM [dbo].[materials]
 		WHERE MaterialID = ?`
 
@@ -103,6 +107,7 @@ func GetMaterialByID(materialID int) (*Material, error) {
 		&material.Netto,
 		&material.Brutto,
 		&material.QuantityInHU,
+		&material.Description,
 	)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("материал с ID %d не найден", materialID)
@@ -128,7 +133,8 @@ func GetAllMaterials() ([]Material, error) {
 			HU,
 			Netto,
 			Brutto,
-			QuantityInHU
+			QuantityInHU,
+			Description
 		FROM [dbo].[materials]
 		ORDER BY MaterialCode`
 
@@ -150,6 +156,7 @@ func GetAllMaterials() ([]Material, error) {
 			&m.Netto,
 			&m.Brutto,
 			&m.QuantityInHU,
+			&m.Description,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("ошибка сканирования материала: %w", err)
