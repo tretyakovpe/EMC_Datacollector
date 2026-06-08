@@ -10,15 +10,18 @@ import (
 )
 
 type LineConfig struct {
-	Name       string
-	IP         string
-	Port       sql.NullInt64
-	Printer    sql.NullString
-	PrintLabel bool
-	IsOnline   bool
-	LastCheck  time.Time
-	IsActive   bool
-	Camera     sql.NullString
+	Name            string
+	IP              string
+	Port            sql.NullInt64
+	Printer         sql.NullString
+	PrintLabel      bool
+	IsOnline        bool
+	LastCheck       time.Time
+	IsActive        bool
+	Camera          sql.NullString
+	lastCounter     int
+	lastBoxQuantity int
+	lastMaterial    string
 }
 
 // GetAllLines загружает все линии из таблицы plc
@@ -178,63 +181,27 @@ func IsLineActive(lineName string) (bool, error) {
 
 }
 
-/*// GetLinesStatusForAPI возвращает статус линий для API
-func GetLinesStatusForAPI() ([]map[string]interface{}, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+// UpdateLineStats обновляет статистику линии в БД
+func UpdateLineStats(lineName string, counter, boxQuantity int, material string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	query := `
-		SELECT
-			[name],
-			[is_online],
-			[last_check],
-			[is_active],
-			[ip],
-			[printer]
-		FROM [dbo].[plc]
-		ORDER BY [name]`
+        UPDATE [dbo].[plc] 
+        SET 
+            last_counter = ?,
+            last_box_quantity = ?,
+            last_material = ?,
+            last_check = GETDATE()
+        WHERE [name] = ?`
 
-	rows, err := DB.QueryContext(ctx, query)
+	_, err := DB.ExecContext(ctx, query, counter, boxQuantity, material, lineName)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка запроса линий: %w", err)
+		return fmt.Errorf("ошибка обновления статистики линии: %w", err)
 	}
-	defer rows.Close()
-
-	var lines []map[string]interface{}
-	for rows.Next() {
-		var name, ip string
-		var printer sql.NullString
-		var isOnline, isActive bool
-		var lastCheck sql.NullTime
-
-		if err := rows.Scan(&name, &isOnline, &lastCheck, &isActive, &ip, &printer); err != nil {
-			logger.Error("Ошибка сканирования строки линии: %v", err)
-			continue
-		}
-
-		line := map[string]interface{}{
-			"name":     strings.TrimSpace(name),
-			"isOnline": isOnline,
-			"isActive": isActive,
-			"ip":       strings.TrimSpace(ip),
-			"printer":  nil,
-			"lastSeen": nil,
-		}
-
-		if printer.Valid {
-			line["printer"] = strings.TrimSpace(printer.String)
-		}
-
-		if lastCheck.Valid {
-			line["lastSeen"] = lastCheck.Time.Format("2006-01-02 15:04:05")
-		}
-
-		lines = append(lines, line)
-	}
-
-	return lines, nil
+	return nil
 }
-*/
+
 // GetLineConfig возвращает конфигурацию одной линии по имени
 func GetLineConfig(lineName string) (*LineConfig, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

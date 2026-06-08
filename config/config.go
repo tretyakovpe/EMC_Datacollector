@@ -16,6 +16,9 @@ type ShiftConfig struct {
 
 // AppConfig описывает структуру нашего файла настроек
 type AppConfig struct {
+	DebugMode            bool                   `json:"-"` // устанавливается из флага
+	DebugDB              bool                   `json:"-"` // устанавливается из флага
+	DebugLine            string                 `json:"-"` // устанавливается из флага
 	DbProdConnection     string                 `json:"db_prod_connection"`
 	DbTestConnection     string                 `json:"db_test_connection"`
 	TrassirAddress       string                 `json:"trassir_address"`
@@ -29,6 +32,12 @@ type AppConfig struct {
 
 // GlobalConfig хранит загруженные настройки, доступные из любого места программы
 var GlobalConfig AppConfig
+var customConfigPath string
+
+// SetConfigPath устанавливает пользовательский путь к файлу конфигурации
+func SetConfigPath(path string) {
+	customConfigPath = path
+}
 
 // LoadConfig читает файл config.json из корня программы
 func LoadConfig() error {
