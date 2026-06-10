@@ -1,0 +1,86 @@
+{
+  "width": 210,
+  "height": 148,
+  "Strips": [
+    {
+      "X1": 5,
+      "Y1": 5,
+      "X2": 5,
+      "Y2": 143
+    },
+    {
+      "X1": 5,
+      "Y1": 143,
+      "X2": 204,
+      "Y2": 143
+    },
+    {
+      "X1": 204,
+      "Y1": 143,
+      "X2": 204,
+      "Y2": 5
+    },
+    {
+      "X1": 204,
+      "Y1": 5,
+      "X2": 5,
+      "Y2": 5
+    }
+  ],
+  "TextFields": [
+    {
+      "Name": "CustomerCode",
+      "X": 120,
+      "Y": 30,
+      "FontSize": 12,
+      "FontWeight": "normal",
+      "Width": 90,
+      "Height": 15
+    },
+    {
+      "Name": "Material",
+      "X": 10,
+      "Y": 30,
+      "Width": 90,
+      "Height": 16,
+      "FontSize": 16,
+      "FontWeight": "bold",
+      "Format": ""
+    },
+    {
+      "Name": "Description",
+      "X": 10,
+      "Y": 44,
+      "Width": 110,
+      "Height": 32,
+      "FontSize": 12,
+      "FontWeight": "normal",
+      "Format": ""
+    },
+    {
+      "Name": "Date",
+      "X": 70,
+      "Y": 80,
+      "FontSize": 10,
+      "FontWeight": "normal",
+      "Width": 50,
+      "Height": 15,
+      "Format": "dd.MM.yyyy"
+    }
+  ],
+  "FixedTextFields":[
+    {
+      "Name": "Head1",
+      "X": 10,
+      "Y": 70,
+      "FontSize": 10,
+      "FontWeight": "normal",
+      "Width": 60,
+      "Height": 15,
+      "Format": "dd.MM.yyyy",
+      "CharsPerLine":30,
+      "Rows":1,
+      "Value":"СЕРТИФИКАТ КАЧЕСТВА"
+    }
+  ]
+}

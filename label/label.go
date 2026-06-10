@@ -181,6 +181,34 @@ func GenerateLabelPdf(box BoxData, labelType string) (string, error) {
 		}
 	}
 
+	// Рисуем фиксированные текстовые поля (FixedTextFields)
+	for _, textField := range template.FixedTextFields {
+		val := getValueByName(textField.Name, textField.Format, box)
+		if val == "" {
+			continue
+		}
+		// Экранируем XML спецсимволы
+		val = escapeXml(val)
+		// Специальная логика автопереноса для длинного поля
+		if len(val) > textField.CharsPerLine && textField.Width > 0 {
+			// Разбиваем текст на строки
+			lines := wrapText(val, textField.CharsPerLine)
+			for i, line := range lines {
+				if i >= textField.Rows { // максимум строк для текстового поля
+					break
+				}
+				// Смещение по Y: первая строка на месте, вторая — ниже
+				yOffset := textField.Y + float64(i*(textField.FontSize+2))
+				svg.WriteString(fmt.Sprintf("<text x='%f' y='%f' text-anchor='start' dominant-baseline='text-before-edge' font-weight='%s' font-size='%d'>%s</text>\n",
+					textField.X, yOffset, textField.FontWeight, textField.FontSize, line))
+			}
+		} else {
+			// Обычный однострочный вывод текста
+			svg.WriteString(fmt.Sprintf("<text id='%s' x='%f' y='%f' text-anchor='start' dominant-baseline='text-before-edge' font-weight='%s' font-size='%d'>%s</text>\n",
+				textField.Name, textField.X, textField.Y, textField.FontWeight, textField.FontSize, val))
+		}
+	}
+
 	// --- РИСУЕМ ВЕКТОРНЫЕ QR-КОДЫ ---
 	for _, qrTmp := range template.QRCodes {
 		qrValue := fmt.Sprintf("3OS%s%s", box.Material, box.LabelCode)

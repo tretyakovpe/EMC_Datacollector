@@ -1,12 +1,14 @@
 package label
 
-// Структуры для 100% совпадения с вашим файлом конфигурации бирок
+// Структуры конфигурации бирок
+
 type LabelTemplate struct {
-	Width      float64          `json:"width"`
-	Height     float64          `json:"height"`
-	Strips     []StripTemplate  `json:"Strips"`
-	TextFields []TextTemplate   `json:"TextFields"`
-	QRCodes    []QRCodeTemplate `json:"QRCodes"`
+	Width           float64             `json:"width"`
+	Height          float64             `json:"height"`
+	Strips          []StripTemplate     `json:"Strips"`
+	TextFields      []TextTemplate      `json:"TextFields"`
+	FixedTextFields []FixedTextTemplate `json:"FixedTextFields"`
+	QRCodes         []QRCodeTemplate    `json:"QRCodes"`
 }
 
 type StripTemplate struct {
@@ -16,15 +18,29 @@ type StripTemplate struct {
 	Y2 float64 `json:"Y2"`
 }
 
-type TextTemplate struct {
+type TextTemplate struct { //Текст который зависит от линии и типа.
 	Name       string  `json:"Name"`
 	X          float64 `json:"X"`
 	Y          float64 `json:"Y"`
-	Width      float64 `json:"Width"`  // Добавили поле Width
-	Height     float64 `json:"Height"` // Добавили поле Height
+	Width      float64 `json:"Width"`
+	Height     float64 `json:"Height"`
 	FontWeight string  `json:"FontWeight"`
 	FontSize   int     `json:"FontSize"`
-	Format     string  `json:"Format"` // Добавили поле Format
+	Format     string  `json:"Format"`
+}
+
+type FixedTextTemplate struct { //Текст одинаковый на каждом экземпляре
+	Name         string  `json:"Name"`
+	X            float64 `json:"X"`
+	Y            float64 `json:"Y"`
+	Width        float64 `json:"Width"`
+	Height       float64 `json:"Height"`
+	FontWeight   string  `json:"FontWeight"`
+	FontSize     int     `json:"FontSize"`
+	Format       string  `json:"Format"`
+	CharsPerLine int     `json:"CharsPerLine"`
+	Rows         int     `json:"Rows"`
+	Value        string  `json:"Value"`
 }
 
 type QRCodeTemplate struct {
