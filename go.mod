@@ -2,6 +2,8 @@ module datacollector
 
 go 1.26.3
 
+require github.com/signintech/gopdf v0.36.1
+
 require (
 	codeberg.org/go-pdf/fpdf v0.11.1 // indirect
 	github.com/BurntSushi/freetype-go v0.0.0-20160129220410-b763ddbfe298 // indirect
@@ -22,6 +24,8 @@ require (
 	github.com/kardianos/service v1.2.4 // indirect
 	github.com/microsoft/go-mssqldb v1.10.0 // indirect
 	github.com/phin1x/go-ipp v1.7.0 // indirect
+	github.com/phpdave11/gofpdi v1.0.14-0.20211212211723-1f10f9844311 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/robinson/gos7 v0.0.0-20241205073040-7ea1d6fb9d20 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef // indirect

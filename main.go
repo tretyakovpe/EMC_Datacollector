@@ -466,7 +466,7 @@ func pollPartData(client gos7.Client, line *Line) bool {
 		exists := checkDBExists(client, 1013)
 		line.hasDB1013 = &exists
 		if !exists {
-			logger.Info("[%s] DB1013 не найдена в ПЛК, опрос деталей отключён", line.Name)
+			logger.Info("[%s] в ПЛК отсутствует DB1013 , опрос деталей отключён", line.Name)
 			return true
 		}
 		logger.Debug("[%s] DB1013 найдена, опрос деталей включён", line.Name)
@@ -576,12 +576,24 @@ func pollBoxData(client gos7.Client, line Line) bool {
 			}
 
 			go func(info label.BoxData) {
+				//ТУТ А5 надо заменить на параметр и добавить его в БД к статнции
 				pdfFile, err := label.GenerateLabelPdf(info, "A5")
 				if err != nil {
 					logger.Error("[%s] Ошибка генерации PDF: %v", line.Name, err)
 					return
+				} else {
+					logger.Info("[%s] Бирка сохранена: %s", line.Name, pdfFile)
+					_ = label.PrintLabelNetwork(pdfFile, line.Printer, line.Name)
 				}
-				_ = label.PrintLabelNetwork(pdfFile, line.Printer, line.Name)
+
+				// Генерируем сертификат качества (если нужно)
+				certPath, err := label.GenerateCertificatePdf(info)
+				if err != nil {
+					logger.Error("[%s] Ошибка генерации сертификата: %v", line.Name, err)
+				} else {
+					logger.Info("[%s] Сертификат сохранён: %s", line.Name, certPath)
+					_ = label.PrintLabelNetwork(certPath, line.Printer, line.Name)
+				}
 			}(boxInfo)
 		}
 

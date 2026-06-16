@@ -3,65 +3,68 @@
   "height": 148,
   "Strips": [
     {
-      "X1": 5,
-      "Y1": 5,
-      "X2": 5,
-      "Y2": 143
+      "X1": 2,
+      "Y1": 2,
+      "X2": 2,
+      "Y2": 146
     },
     {
-      "X1": 5,
-      "Y1": 143,
-      "X2": 204,
-      "Y2": 143
+      "X1": 2,
+      "Y1": 146,
+      "X2": 208,
+      "Y2": 146
     },
     {
-      "X1": 204,
-      "Y1": 143,
-      "X2": 204,
-      "Y2": 5
+      "X1": 208,
+      "Y1": 146,
+      "X2": 208,
+      "Y2": 2
     },
     {
-      "X1": 204,
-      "Y1": 5,
-      "X2": 5,
-      "Y2": 5
+      "X1": 208,
+      "Y1": 2,
+      "X2": 2,
+      "Y2": 2
     }
   ],
   "TextFields": [
     {
       "Name": "CustomerCode",
-      "X": 120,
-      "Y": 30,
-      "FontSize": 12,
+      "X": 80,
+      "Y": 80,
+      "FontSize": 6,
       "FontWeight": "normal",
       "Width": 90,
-      "Height": 15
+      "Height": 10,
+      "Format": ""
     },
     {
       "Name": "Material",
-      "X": 10,
-      "Y": 30,
-      "Width": 90,
-      "Height": 16,
-      "FontSize": 16,
-      "FontWeight": "bold",
+      "X": 120,
+      "Y": 80,
+      "FontSize": 6,
+      "FontWeight": "normal",
+      "Width": 50,
+      "Height": 10,
       "Format": ""
     },
     {
       "Name": "Description",
-      "X": 10,
-      "Y": 44,
-      "Width": 110,
+      "X": 80,
+      "Y": 90,
+      "Width": 140,
       "Height": 32,
-      "FontSize": 12,
+      "FontSize": 6,
       "FontWeight": "normal",
-      "Format": ""
+      "Format": "",
+      "CharsPerLine":300,
+      "Rows":2
     },
     {
       "Name": "Date",
-      "X": 70,
-      "Y": 80,
-      "FontSize": 10,
+      "X": 80,
+      "Y": 122,
+      "FontSize": 6,
       "FontWeight": "normal",
       "Width": 50,
       "Height": 15,
@@ -71,16 +74,94 @@
   "FixedTextFields":[
     {
       "Name": "Head1",
-      "X": 10,
-      "Y": 70,
+      "X": 50,
+      "Y": 15,
       "FontSize": 10,
       "FontWeight": "normal",
       "Width": 60,
       "Height": 15,
-      "Format": "dd.MM.yyyy",
-      "CharsPerLine":30,
+      "Format": "",
+      "CharsPerLine":300,
       "Rows":1,
       "Value":"СЕРТИФИКАТ КАЧЕСТВА"
+    },
+    {
+      "Name": "Head2",
+      "X": 8,
+      "Y": 40,
+      "FontSize": 6,
+      "FontWeight": "bold",
+      "Width": 60,
+      "Height": 50,
+      "Format": "",
+      "CharsPerLine": 999,
+      "Rows":5,
+      "Value":"Изготовитель"
+    },
+    {
+      "Name": "Head8",
+      "X": 80,
+      "Y": 40,
+      "FontSize": 4,
+      "FontWeight": "normal",
+      "Width": 170,
+      "Height": 50,
+      "Format": "",
+      "CharsPerLine": 90,
+      "Rows":5,
+      "Value":"ООО Электромеханические компоненты \n Фактич. адрес: 445141 Ставропольский район, сельское поселение Тимофеевка, село Р.Борковка, ул. Северная, 6А \nТелефон (8482)698628"
+    },
+    {
+      "Name": "Head3",
+      "X": 8,
+      "Y": 80,
+      "FontSize": 6,
+      "FontWeight": "bold",
+      "Width": 60,
+      "Height": 50,
+      "Format": "",
+      "CharsPerLine": 999,
+      "Rows":5,
+      "Value":"Наименование\nизделия"
+    },
+    {
+      "Name": "Head5",
+      "X": 8,
+      "Y": 110,
+      "FontSize": 6,
+      "FontWeight": "bold",
+      "Width": 60,
+      "Height": 50,
+      "Format": "",
+      "CharsPerLine": 999,
+      "Rows":2,
+      "Value":"Технические условия"
+    },
+    {
+      "Name": "Head4",
+      "X": 8,
+      "Y": 122,
+      "FontSize": 6,
+      "FontWeight": "bold",
+      "Width": 60,
+      "Height": 50,
+      "Format": "",
+      "CharsPerLine": 999,
+      "Rows":5,
+      "Value":"Дата\nпроизводства"
+    },
+     {
+      "Name": "Head6",
+      "X": 80,
+      "Y": 110,
+      "FontSize": 6,
+      "FontWeight": "normal",
+      "Width": 60,
+      "Height": 50,
+      "Format": "",
+      "CharsPerLine": 999,
+      "Rows":2,
+      "Value":"ТУ 4541-001-69106166-2012"
     }
-  ]
+ ]
 }
