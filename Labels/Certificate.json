@@ -25,7 +25,14 @@
       "Y1": 2,
       "X2": 2,
       "Y2": 2
+    },
+    {
+      "X1": 2,
+      "Y1": 20,
+      "X2": 208,
+      "Y2": 20
     }
+
   ],
   "TextFields": [
     {
@@ -63,7 +70,7 @@
     {
       "Name": "Date",
       "X": 80,
-      "Y": 122,
+      "Y": 130,
       "FontSize": 6,
       "FontWeight": "normal",
       "Width": 50,
@@ -126,21 +133,21 @@
     },
     {
       "Name": "Head5",
-      "X": 8,
+      "X": 18,
       "Y": 110,
-      "FontSize": 6,
-      "FontWeight": "bold",
+      "FontSize": 5,
+      "FontWeight": "normal",
       "Width": 60,
       "Height": 50,
       "Format": "",
       "CharsPerLine": 999,
       "Rows":2,
-      "Value":"Технические условия"
+      "Value":"Продукция соответствует требованиям ТУ 4541-001-69106166-2012\nи признана годной для поставки"
     },
     {
       "Name": "Head4",
       "X": 8,
-      "Y": 122,
+      "Y": 130,
       "FontSize": 6,
       "FontWeight": "bold",
       "Width": 60,
@@ -149,19 +156,6 @@
       "CharsPerLine": 999,
       "Rows":5,
       "Value":"Дата\nпроизводства"
-    },
-     {
-      "Name": "Head6",
-      "X": 80,
-      "Y": 110,
-      "FontSize": 6,
-      "FontWeight": "normal",
-      "Width": 60,
-      "Height": 50,
-      "Format": "",
-      "CharsPerLine": 999,
-      "Rows":2,
-      "Value":"ТУ 4541-001-69106166-2012"
     }
  ]
 }

@@ -338,7 +338,7 @@ func GenerateCertificatePdf(box BoxData) (string, error) {
 
 	// Рисуем линии
 	for _, line := range template.Strips {
-		svg.WriteString(fmt.Sprintf("<line x1='%f' y1='%f' x2='%f' y2='%f' stroke='black' stroke-width='1' />\n",
+		svg.WriteString(fmt.Sprintf("<line x1='%f' y1='%f' x2='%f' y2='%f' stroke='black' stroke-width='0.2' />\n",
 			line.X1, line.Y1, line.X2, line.Y2))
 	}
 
