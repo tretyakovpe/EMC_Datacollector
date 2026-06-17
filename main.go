@@ -513,28 +513,29 @@ func pollPartData(client gos7.Client, line *Line) bool {
 			"counter":   counter,
 			"boxVolume": boxVolume,
 		})
-		if plc.GetBitAt(partData, 2, 2) { // PartReady
-			partOk := plc.GetBitAt(partData, 0, 0)
-			partNOk := plc.GetBitAt(partData, 0, 1)
-			if partOk {
-				database.SaveGoodPart(line.Name, partMaterial, counter)
-				logger.Info("[%s] собрано %s %d/%d", line.Name, partMaterial, counter, boxVolume)
-				events.SendPartEvent(line.Name, partMaterial, counter, boxVolume, true)
-			}
+	}
 
-			if partNOk {
-				logger.Info("[%s] Деталь имеет дефект (NOK). Выделяем MKM байты...", line.Name)
-				events.SendPartEvent(line.Name, partMaterial, counter, boxVolume, true)
-				mkmData := make([]byte, 4)
-				copy(mkmData, partData[26:30])
+	if plc.GetBitAt(partData, 2, 2) { // PartReady
+		partOk := plc.GetBitAt(partData, 0, 0)
+		partNOk := plc.GetBitAt(partData, 0, 1)
+		if partOk {
+			database.SaveGoodPart(line.Name, partMaterial, counter)
+			logger.Info("[%s] собрано %s %d/%d", line.Name, partMaterial, counter, boxVolume)
+			events.SendPartEvent(line.Name, partMaterial, counter, boxVolume, true)
+		}
 
-				go trassir.ProcessNokVideoAsync(line.Name, line.Camera, partMaterial, counter, mkmData)
-			}
+		if partNOk {
+			logger.Info("[%s] Деталь имеет дефект (NOK). Выделяем MKM байты...", line.Name)
+			events.SendPartEvent(line.Name, partMaterial, counter, boxVolume, true)
+			mkmData := make([]byte, 4)
+			copy(mkmData, partData[26:30])
 
-			// Сбрасываем флаг PartReady только если НЕ режим отладки
-			if !line.DisablePLCWrite {
-				plc.SetFlagAt(client, line.Name, plc.Partready)
-			}
+			go trassir.ProcessNokVideoAsync(line.Name, line.Camera, partMaterial, counter, mkmData)
+		}
+
+		// Сбрасываем флаг PartReady только если НЕ режим отладки
+		if !line.DisablePLCWrite {
+			plc.SetFlagAt(client, line.Name, plc.Partready)
 		}
 	}
 	return true
