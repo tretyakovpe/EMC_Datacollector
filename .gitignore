@@ -38,3 +38,8 @@ go.work.sum
 # .idea/
 # .vscode/
 >>>>>>> 37ce1b6abb4b2a73f6023be4ee9a6af8060c1cc3
+scripts/check-secrets.sh
+.vscode/settings.json
+Makefile
+.golangci.yml
+.editorconfig
